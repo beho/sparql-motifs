@@ -1,8 +1,6 @@
-#!/bin/sh
-exec scala "$0" "$@" 
-!#
+package motifs.commandline
 
-import motifs.MotifFinder
+// import motifs.MotifEnumerator
 import motifs.actors._
 
 import akka.actor.Actor._
@@ -10,7 +8,7 @@ import akka.actor.{ActorRegistry, Actor}
 
 import java.net._
 
-object Run extends App {
+object Executor extends App {
 	val nodes = List( ("localhost", 2552), ("localhost", 2553) )
 
 
@@ -67,9 +65,9 @@ object Run extends App {
 				nextOption( o ++ Map( 'skip -> true ), tail )
 			}
 
-			case file :: tail => {
-				val files = o( 'files ).asInstanceOf[Set[String]] + file
-				nextOption( o ++ Map( 'files -> files ), tail )
+			case file :: Nil => {
+				// val files = o( 'files ).asInstanceOf[Set[String]] + file
+				o ++ Map( 'file -> file )
 			}
 		}
 	}
@@ -115,7 +113,7 @@ object Run extends App {
 
 				println( "waiting for "+nodes+" nodes to connect\n" )
 
-				val counter = actorOf( new MotifsCounter( querySetName, nodes ) )
+				val counter = actorOf( new MotifCounter( querySetName, nodes ) )
 
 				Actor.remote.start( ip, port )
 				Actor.remote.register( "motifs-counter", counter )
@@ -124,10 +122,11 @@ object Run extends App {
 			case 'enumerator => {
 				val endpointURL = options( 'endpoint ).asInstanceOf[String]
 				val counterAddress = options( 'counterAddress ).asInstanceOf[(String, Int)]
-				val filenames = options( 'files ).asInstanceOf[Set[String]]
+				val fileneme = options( 'file ).asInstanceOf[String]
 				val port = options( 'port ).asInstanceOf[Int]
 
-				val master = actorOf( new NodeMaster( filenames, endpointURL, counterAddress ) )
+				// val master = actorOf( new NodeMaster( filenames, endpointURL, counterAddress ) )
+				val enumerator = actorOf( new MotifEnumerator( filename, dataset, endpointURL, skipPredicateVars, counterAddrs) )
 
 				Actor.remote.start( ip, port )
 				Actor.remote.register( "master", master )
@@ -142,7 +141,7 @@ object Run extends App {
 				filenames.foreach( f => {
 					println( "running "+f )
 
-					val finder = new MotifFinder( f, dataset, endpointURL, skipPredicateVars )
+					val finder = new motifs.MotifEnumerator( f, dataset, endpointURL, skipPredicateVars )
 					finder.run
 				})
 			}

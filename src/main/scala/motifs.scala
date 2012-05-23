@@ -478,9 +478,20 @@ object QueryHelper {
 	}
 }
 
+trait MotifHandler[N, E] {
+	def handle( subgraph: DirectedGraph[N, E], queryURI: String )
+	def close: Unit
+}
 
+trait MotifCounter[N, E] extends MotifHandler[N, E] {
+	protected var handled = 0
+	protected var unique = 0
 
-class MotifsCounter( filename: String ) {
+	def motifsHandled: Int = handled
+	def uniqueMotifsEncountered: Int = unique
+}
+
+class TDBMotifCounter( filename: String ) extends MotifCounter[jena.graph.Node, EdgeNode] {
 	// type Subgraph = AbstractGraph[jena.graph.Node, EdgeNode]
 
 	// filename without (last) extension
@@ -493,8 +504,8 @@ class MotifsCounter( filename: String ) {
 	val countVarName = "count"
 	val motifURITemplate = "http://fit.vutbr.cz/query-analysis#motif-"
 
-	var uniqueMotifsCount = 0
-	var totalMotifsCount = 0
+	// var uniqueMotifsCount = 0
+	// var totalMotifsCount = 0
 
 	var datasetGraph = TDBFactory.createDatasetGraph( dir )
 	var graphStore = update.GraphStoreFactory.create( datasetGraph )
@@ -502,7 +513,7 @@ class MotifsCounter( filename: String ) {
 	println( "optimizer strategy: "+datasetGraph.getTransform.toString )
 	
 
-	def countIn( subgraph: DirectedGraph[jena.graph.Node, EdgeNode], queryURIString: String ) = {
+	def handle( subgraph: DirectedGraph[jena.graph.Node, EdgeNode], queryURI: String ) = {
 		// println( "s: "+subgraph.toString )
 
 		TDB.sync( graphStore )
@@ -510,12 +521,12 @@ class MotifsCounter( filename: String ) {
 
 		// println( graphStore.toString )
 
-		val queryURI = Node.createURI( queryURIString )
+		// val queryURI = Node.createURI( queryURI )
 
 		val query = QueryHelper.queryFor( subgraph )
 		// println( query.toString )
 		
-		totalMotifsCount += 1
+		handled += 1
 		// println( "q: "+query.toString )
 		
 		val plan = QueryExecutionFactory.createPlan( query, graphStore )
@@ -541,15 +552,15 @@ class MotifsCounter( filename: String ) {
 
 			graphStore.getDefaultGraph.add( new Triple( motifURI, countProperty, newCount ) )
 
-			graphStore.getDefaultGraph.add( new Triple( motifURI, containedInProperty, queryURI ) )
+			graphStore.getDefaultGraph.add( new Triple( motifURI, containedInProperty,  Node.createURI( queryURI ) ) )
 		}
 		else {
 			result.close
 
-			uniqueMotifsCount = uniqueMotifsCount + 1
+			unique += 1
 			
 			val graph = QueryHelper.subgraphToRDFGraph( subgraph )
-			val motifURI = Node.createURI( motifURITemplate + uniqueMotifsCount.toString )
+			val motifURI = Node.createURI( motifURITemplate + unique.toString )
 
 			// println( "r: "+graph.toString )
 			// println( "inserting motif "+motifURI.toString+":\n\t"+graph.toString+"\n" )
@@ -561,10 +572,10 @@ class MotifsCounter( filename: String ) {
 			// val motif = 
 			graphStore.getDefaultGraph.add( new Triple( motifURI, countProperty, QueryHelper.createUnsignedIntLiteral( 1 ) ) )
 
-			graphStore.getDefaultGraph.add( new Triple( motifURI, containedInProperty, queryURI ) )
+			graphStore.getDefaultGraph.add( new Triple( motifURI, containedInProperty,  Node.createURI( queryURI ) ) )
 		}
 
-		if( totalMotifsCount == 1000 || totalMotifsCount == 3000 || totalMotifsCount == 5000 || totalMotifsCount % 10000 == 0 ) {
+		if( handled == 1000 || handled == 3000 || handled == 5000 || handled % 10000 == 0 ) {
 			reopenWithGeneratedStats
 		}
 	}
@@ -897,11 +908,11 @@ class QueryReader( filename: String, predefinedPrefixes: String = "", skipPredic
 }
 
 
-class MotifFinder( val filename: String, dataset: String, endpointURL: String, skipPredicateVarQueries: Boolean = false) {
+class MotifEnumerator( val filename: String, val dataset: String, val substitutionsEndpointURL: String, val skipPredicateVarQueries: Boolean = false, val handler: MotifHandler[jena.graph.Node, EdgeNode] ) {
 	val reader = new QueryReader( filename, motifs.Prefixes.forDataset( dataset), skipPredicateVarQueries )
 	val subgraphEnumerator = new ConnectedSubgraphEnumerator[jena.graph.Node, motifs.EdgeNode]()
-	val substitutor = new PredicateVarSubstitutor( endpointURL )
-	val counter = new MotifsCounter( filename )
+	val substitutor = new PredicateVarSubstitutor( substitutionsEndpointURL )
+	// val counter = new MotifsCounter( filename )
 
 	val dateFormat = new SimpleDateFormat( "HH:mm:ss.S" )
 	val startTime = System.currentTimeMillis
@@ -914,18 +925,18 @@ class MotifFinder( val filename: String, dataset: String, endpointURL: String, s
 	@tailrec final def run: Unit = {
 		reader.nextQueryGraph match {
 			case None => {
-				val diffTime = (System.currentTimeMillis - startTime) / 1000.0
-				val queriesPerSecond = reader.queryCount / diffTime
-				val motifsPerSecond = counter.totalMotifsCount / diffTime
+				// val diffTime = (System.currentTimeMillis - startTime) / 1000.0
+				// val queriesPerSecond = reader.queryCount / diffTime
+				// val motifsPerSecond = handler.motifsHandled / diffTime
 
-				val line = "\n\n"+dateFormat.format( new Date )+" DONE\n"+reader.queryCount+" queries read\t\t"+reader.substitutionNeedingQueryCount+" with predicate vars\n"+counter.totalMotifsCount.toString+" motifs\t\t"+counter.uniqueMotifsCount+" unique motifs)\n"+queriesPerSecond.toString+" query/s\t\t"+motifsPerSecond.toString+" motif/s"
+				// val line = "\n\n"+dateFormat.format( new Date )+" DONE\n"+reader.queryCount+" queries read\t\t"+reader.substitutionNeedingQueryCount+" with predicate vars\n"+handler.motifsHandled.toString+" motifs\t\t"+handler.uniqueMotifsEncountered+" unique motifs)\n"+queriesPerSecond.toString+" query/s\t\t"+motifsPerSecond.toString+" motif/s"
 
 				// println( "\n\nDONE: "+reader.queryCount+" queries. "+counter.totalMotifsCount+" motifs" )
 
-				println( line )
+				// println( line )
 				
 				reader.close
-				counter.close
+				handler.close
 				failedSubstitutions.close
 			}
 			case Some( CompleteGraph( graph, uri ) ) => {
@@ -998,19 +1009,19 @@ class MotifFinder( val filename: String, dataset: String, endpointURL: String, s
 	}
 
 	def countIn( motif: DirectedGraph[jena.graph.Node, EdgeNode], queryURI: String ) = {
-		counter.countIn( motif, queryURI )
+		handler.handle( motif, queryURI )
 
 		print( "." )
 
-		if( counter.totalMotifsCount % 1000 == 0 ) {
-			val diffTime = (System.currentTimeMillis - startTime) / 1000.0
-			val queriesPerSecond = reader.queryCount / diffTime
-			val motifsPerSecond = counter.totalMotifsCount / diffTime
+		// if( handler.motifsHandled % 1000 == 0 ) {
+		// 	val diffTime = (System.currentTimeMillis - startTime) / 1000.0
+		// 	val queriesPerSecond = reader.queryCount / diffTime
+		// 	val motifsPerSecond = handler.motifsHandled / diffTime
 
-			val line = dateFormat.format( new Date )+"\t\t\t"+filename+"\n"+reader.queryCount+" queries read\t\t\t"+reader.substitutionNeedingQueryCount+" with predicate vars\n"+counter.totalMotifsCount.toString+" motifs\t\t\t"+counter.uniqueMotifsCount+" unique motifs\n"+queriesPerSecond.toString+" query/s\t\t\t"+motifsPerSecond.toString+" motif/s"
+		// 	val line = dateFormat.format( new Date )+"\t\t\t"+filename+"\n"+reader.queryCount+" queries read\t\t\t"+reader.substitutionNeedingQueryCount+" with predicate vars\n"+handler.motifsHandled.toString+" motifs\t\t\t"+counter.uniqueMotifsEncountered+" unique motifs\n"+queriesPerSecond.toString+" query/s\t\t\t"+motifsPerSecond.toString+" motif/s"
 
-			println( "\n\n"+line+"\n" )
-		}
+		// 	println( "\n\n"+line+"\n" )
+		// }
 	}
 
 	class WrappedDirectedGraph( var graph: DirectedGraph[jena.graph.Node, motifs.EdgeNode] ) {

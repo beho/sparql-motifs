@@ -14,7 +14,8 @@ def add_dependencies(pkg)
   mv pkg.to_s, tempfile
 
   dependencies = compile.dependencies.map { |d| "-c #{d}"}.join(" ")
-  sh "java -jar tools/autojar.jar -baev -o #{pkg} #{dependencies} #{tempfile}"
+  puts "Creating fat jar"
+  sh "java -jar tools/autojar.jar -bae -o #{pkg} #{dependencies} #{tempfile}" # v param for details
 end
 
 def create_classpath_script( dependencies, version )
@@ -34,9 +35,9 @@ define 'sparql-motifs' do
 	compile.with JENA_ARQ, JENA_TDB, JGRAPHT, AKKA_ACTOR, AKKA_REMOTE
 	compile.using( {:optimise => true } )
 
-	package :jar
-
 	create_classpath_script( compile.dependencies, project.version )
+
+	package :jar
 	package(:jar).enhance{ |pkg| pkg.enhance {|pkg| add_dependencies(pkg) } }
 end
 
