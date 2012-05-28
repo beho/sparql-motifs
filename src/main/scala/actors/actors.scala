@@ -8,10 +8,9 @@ import scala.collection._
 import scala.collection.JavaConversions.asScalaSet
 import scala.annotation.tailrec
 
-import akka.actor.Actor._
-import akka.actor.{ActorRegistry, Actor, ActorRef}
-import akka.dispatch.Dispatchers
-import akka.serialization.RemoteActorSerialization._
+import akka.actor._
+// import akka.dispatch.Dispatchers
+// import akka.serialization.RemoteActorSerialization._
 // import akka.event.EventHandler
 
 import com.hp.hpl._
@@ -29,25 +28,25 @@ import org.jgrapht.graph.{DirectedPseudograph, DirectedSubgraph}
 
 abstract class Message
 
-case class File( filename: String, part: Int )
-case class Handle( motif: WrappedDirectedSubgraph, queryURI: String )
-case class Ack
+case class StartCounting( filename: String, part: Int ) extends Message 
+case class Handle( motif: WrappedDirectedSubgraph, queryURI: String ) extends Message
+case class Ack extends Message
 
-case class Register( parts: Set[String] ) extends Message
-case class Run() extends Message
-case class Done() extends Message
+// case class Register( parts: Set[String] ) extends Message
+// case class Run() extends Message
+case class Done extends Message
 
-case class GetSubstitutions( query: Query, predicateVars: Set[Var] ) extends Message
-case class Substitutions( substitutions: Option[List[Binding]] ) extends Message
+// case class GetSubstitutions( query: Query, predicateVars: Set[Var] ) extends Message
+// case class Substitutions( substitutions: Option[List[Binding]] ) extends Message
 
-case class CountIn( filename: String, motif: WrappedDirectedSubgraph, queryURI: String ) extends Message
+// case class CountIn( filename: String, motif: WrappedDirectedSubgraph, queryURI: String ) extends Message
 
-case class EndOfBatch( filename: String ) extends Message
-case class NextBatch() extends Message
+// case class EndOfBatch( filename: String ) extends Message
+// case class NextBatch() extends Message
 
-case class NextQuery() extends Message
+// case class NextQuery() extends Message
 
-case class Status( line: String )
+// case class Status( line: String )
 
 
 
@@ -97,14 +96,27 @@ class WrappedDirectedSubgraph( var graph: DirectedGraph[jena.graph.Node, motifs.
 
 class MotifEnumerator( val filename: String, val dataset: String, val substitutionsEndpointURL: String, val skipPredicateQueries: Boolean, counterAddrs: Array[(String, Int)] ) extends Actor with motifs.MotifHandler[jena.graph.Node, motifs.EdgeNode] {
 	val enumerator = new motifs.MotifEnumerator( filename, dataset, substitutionsEndpointURL, skipPredicateQueries, this )
-	val counters = counterAddrs.map( (addr: (String, Int)) => { remote.actorFor( "motif-counter", addr._1, addr._2 ) } )
+
+	var counters: Array[ActorRef] = _
 	val idx = 0
 
 	override def preStart = {
 		println( "[info] starting enumerator actor "+filename )
 
-		Actor.remote.registerByUuid( self )
-		for( c <- counters; i <- counters.indices ) { c ! File( filename, i ) }
+		counters = counterAddrs.map( (addr: (String, Int)) => { 
+			val addrString = "akka://counter@"+addr._1+":"+addr._2+"/user/motif-counter"
+			println( "[info] connecting to counter @ "+addrString )
+			context.actorFor( addrString ) 
+		})
+
+		for( c <- counters; i <- counters.indices ) { 
+			println( "[info] registering with counter "+i+" @ "+c.toString)
+			c ! StartCounting( filename, i ) 
+		}
+	}
+
+	override def postStop = {
+		println( "[info] enumerator stopped" )
 	}
 	
 	def receive = {
@@ -118,16 +130,32 @@ class MotifEnumerator( val filename: String, val dataset: String, val substituti
 	}
 
 	def close = {
-		for( c <- counters ) { c ! Done }
+		for( c <- counters ) {
+			c ! Done
+			context.system.shutdown
+		}
 	}
 }
 
 class MotifCounter extends Actor {
 	var counter: motifs.TDBMotifCounter = null
 
+	override def preStart = {
+		println( "[info] starting counter actor" )
+		println( self.toString )
+	}
+
+	override def postStop = {
+		println( "[info] counter stopped" )
+	}
+
 	def receive = {
-		case File( filename, part ) => {
+		case StartCounting( filename, part ) => {
+			println( "[info] starting counting '"+filename+"'" )
+				
 			counter = new motifs.TDBMotifCounter( filename+"-"+part )
+
+			sender ! Ack
 		}
 
 		case Handle( wrappedMotif, queryURI ) => {
@@ -135,12 +163,17 @@ class MotifCounter extends Actor {
 		}
 
 		case Done => {
+			println( "[info] done" )
+
 			counter.close
 
-			Actor.registry.shutdownAll
-			Actor.remote.shutdownClientModule
-			Actor.remote.shutdownServerModule
+			context.system.shutdown
+			// Actor.registry.shutdownAll
+			// Actor.remote.shutdownClientModule
+			// Actor.remote.shutdownServerModule
 		}
+
+		case x:AnyRef => println( x.toString )
 	}
 }
 

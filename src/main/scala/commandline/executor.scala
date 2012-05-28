@@ -3,12 +3,13 @@ package motifs.commandline
 // import motifs.MotifEnumerator
 import motifs.actors._
 
-import akka.actor.Actor._
-import akka.actor.{ActorRegistry, Actor}
+import akka.actor._
+import com.typesafe.config.ConfigFactory
 
+import scala.collection.mutable.Set
 import java.net._
 
-object Executor extends App {
+object Executor {
 	val nodes = List( ("localhost", 2552), ("localhost", 2553) )
 
 
@@ -16,35 +17,41 @@ object Executor extends App {
 
 	private def getOptions( args: Array[String] ): Options = {
 		val argsList = args.toList
-		val o = Map( 'files -> Set() )
+		val o = Map( 'counters -> Set() )
 
 		return nextOption( o, argsList )
 	}
 
 	private def nextOption( o: Options, args: List[String] ): Options = {
 		args match {
-			case Nil => o
+			case "-role" :: "both" :: tail => {
+				nextOption( o ++ Map( 'role -> 'both ), tail )
+			}
 
-			case "-role" :: "counter" :: port :: querySetName :: nodesCount :: tail => {
+			case "-role" :: "counter" :: port :: tail => {
 				if( o.contains( 'role ) ) {
-					println( "cannot set both counter and enumerator role." )
+					println( "[error] cannot set both counter and enumerator role." )
 					scala.sys.exit(1)
 				}
 
-				nextOption( o ++ Map( 'role -> 'counter, 'querySetName -> querySetName, 'nodes -> nodesCount.toInt, 'port -> port.toInt ), tail )
+				nextOption( o ++ Map( 'role -> 'counter, 'port -> port.toInt ), tail )
 			}
 
-			case "-role" :: "enumerator" :: port :: counterHost :: counterPort :: tail => {
+			case "-role" :: "enumerator" :: tail => {
 				if( o.contains( 'role ) ) {
-					println( "cannot set both counter and enumerator role." )
+					println( "[error] cannot set both counter and enumerator role." )
 					scala.sys.exit(1)				
 				}
 					
-				nextOption( o ++ Map( 'role -> 'enumerator, 'counterAddress -> (counterHost, counterPort.toInt), 'port -> port.toInt ) , tail )				
+				nextOption( o ++ Map( 'role -> 'enumerator ), tail )
 			}
 
-			case "-role" :: "both" :: tail => {
-				nextOption( o ++ Map( 'role -> 'both ), tail )
+			case "-counter" :: addr :: tail => {
+				val array = addr.split(":")
+				println( "adding counter @ "+array(0)+":"+array(1) )
+				o( 'counters ).asInstanceOf[Set[(String, Int)]].add( (array(0), array(1).toInt) )
+				nextOption( o, tail )
+				// o ++ Map( 'counters -> counters )
 			}
 
 			case "-dataset" :: name :: tail => {
@@ -54,7 +61,7 @@ object Executor extends App {
 					case "swdf" => "http://147.229.13.234:8890/sparql"
 					// case "swdf" => "http://data.semanticweb.org/sparql"
 					case _ => {
-						println( "unknown dataset "+name )
+						println( "[error] unknown dataset "+name )
 						scala.sys.exit(1)
 					}
 				}
@@ -67,8 +74,10 @@ object Executor extends App {
 
 			case file :: Nil => {
 				// val files = o( 'files ).asInstanceOf[Set[String]] + file
-				o ++ Map( 'file -> file )
+				o ++ Map( 'filename -> file )
 			}
+
+			case _ => o
 		}
 	}
 
@@ -78,22 +87,49 @@ object Executor extends App {
 		}
 
 		if( options('role).asInstanceOf[Symbol] == 'enumerator ) {
-			if( !options.contains( 'counterAddress ) || !options.contains( 'endpoint ) )
+			if( !options.contains( 'dataset ) ) {
+				println( "[error] missing dataset" )
+				return false
+			}
+
+			if( !options.contains( 'endpoint ) ) {
+				println( "[error] missing endpoint" )
+				return false
+			}
+
+			if( !options.contains( 'filename ) ) {
+				println( "[error] missing filename" )
+				return false
+			}
+
+			// if( options.contains( 'counterAddress ) )
+			// 	return false
+
+			if( options( 'counters ).asInstanceOf[Set[_]].size == 0 ) {
+				println( "[error] no counters" )
+				return false
+			}
+
+			return true
+		}
+
+		if( options( 'role ).asInstanceOf[Symbol] == 'counter ) {
+			if( !options.contains( 'port ) )
 				return false
 
-			return ( options( 'files ).asInstanceOf[Set[String]].size > 0 )
+			return true
 		}
 
 		return true
 	}
 
 	
-	override def main( args: Array[String] ) = {
+	def main( args: Array[String] ): Unit = {
 		val options = getOptions( args )
 
 		if( !optionsOk( options ) ) {
-			println( "-role counter <port> <name of a query set> <nr of parts>" )
-			println( "-role enumerator <port> <counter host> <counter port> -dataset <dbpedia | swdf> filename+" )
+			println( "-role counter <port>" )
+			println( "-role enumerator -dataset <dbpedia | swdf> [-skip-pvq] (-counter <host:port>)+ filename" )
 			println( "-role both -dataset <dbpedia | swdf> [-skip-pvq] filename+" )
 			sys.exit(1)
 		}
@@ -107,43 +143,52 @@ object Executor extends App {
 
 		role match {
 			case 'counter => {
-				val querySetName = options( 'querySetName ).asInstanceOf[String]
-				val nodes = options( 'nodes ).asInstanceOf[Int]
+				// val querySetName = options( 'querySetName ).asInstanceOf[String]
+				// val nodes = options( 'nodes ).asInstanceOf[Int]
 				val port = options( 'port ).asInstanceOf[Int]
 
-				println( "waiting for "+nodes+" nodes to connect\n" )
+				// println( "waiting for "+nodes+" nodes to connect\n" )
+				val config = ConfigFactory.load
+				// println( config.toString )
 
-				val counter = actorOf( new MotifCounter( querySetName, nodes ) )
+				val system = ActorSystem( "counter", config.getConfig("counter") )
+				val counter = system.actorOf( Props[MotifCounter], name = "motif-counter" )
 
-				Actor.remote.start( ip, port )
-				Actor.remote.register( "motifs-counter", counter )
+				// Actor.remote.start( ip, port )
+				// Actor.remote.register( "motifs-counter", counter )
 			}
 
 			case 'enumerator => {
+				val dataset = options( 'dataset ).asInstanceOf[String]
 				val endpointURL = options( 'endpoint ).asInstanceOf[String]
-				val counterAddress = options( 'counterAddress ).asInstanceOf[(String, Int)]
-				val fileneme = options( 'file ).asInstanceOf[String]
-				val port = options( 'port ).asInstanceOf[Int]
+				val filename = options( 'filename ).asInstanceOf[String]
+				val skipPredicateVars = options.contains( 'skip )
+
+				// val port = options( 'port ).asInstanceOf[Int]
+				val counters = options( 'counters ).asInstanceOf[Set[(String, Int)]].toArray
+				
 
 				// val master = actorOf( new NodeMaster( filenames, endpointURL, counterAddress ) )
-				val enumerator = actorOf( new MotifEnumerator( filename, dataset, endpointURL, skipPredicateVars, counterAddrs) )
+				val system = ActorSystem( "enumerator", ConfigFactory.load.getConfig("enumerator") )
+				val enumerator = system.actorOf( Props( new MotifEnumerator( filename, dataset, endpointURL, skipPredicateVars, counters ) ), name = "motif-enumerator" ) 
 
-				Actor.remote.start( ip, port )
-				Actor.remote.register( "master", master )
+				// Actor.remote.start( ip, port )
+				// Actor.remote.register( "enumberator", enumerator )
 			}
 
 			case 'both => {
 				val dataset = options( 'dataset ).asInstanceOf[String]
 				val endpointURL = options( 'endpoint ).asInstanceOf[String]
-				val filenames = options( 'files ).asInstanceOf[Set[String]]
+				val filename = options( 'files ).asInstanceOf[String]
 				val skipPredicateVars = options.contains( 'skip )
 
-				filenames.foreach( f => {
-					println( "running "+f )
+				// filenames.foreach( f => {
+					println( "running "+filename )
 
-					val finder = new motifs.MotifEnumerator( f, dataset, endpointURL, skipPredicateVars )
-					finder.run
-				})
+					val counter = new motifs.TDBMotifCounter( filename)
+					val enumerator = new motifs.MotifEnumerator( filename, dataset, endpointURL, skipPredicateVars, counter )
+					enumerator.run
+				// })
 			}
 		}
 	}

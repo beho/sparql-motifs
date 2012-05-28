@@ -495,7 +495,6 @@ class TDBMotifCounter( filename: String ) extends MotifCounter[jena.graph.Node, 
 	// type Subgraph = AbstractGraph[jena.graph.Node, EdgeNode]
 
 	// filename without (last) extension
-	val dir = "./tdb/"+filename.split('.').head	
 
 	val countProperty = Node.createURI( "http://fit.vutbr.cz/query-analysis#timesEncountered" )
 	val containedInProperty = Node.createURI( "http://fit.vutbr.cz/query-analysis#containedIn" )
@@ -506,6 +505,11 @@ class TDBMotifCounter( filename: String ) extends MotifCounter[jena.graph.Node, 
 
 	// var uniqueMotifsCount = 0
 	// var totalMotifsCount = 0
+
+	val dir = "./tdb/"+filename.split('.').head	
+	val dirFile = new File( dir )
+	if( !dirFile.exists ) dirFile.mkdirs
+
 
 	var datasetGraph = TDBFactory.createDatasetGraph( dir )
 	var graphStore = update.GraphStoreFactory.create( datasetGraph )

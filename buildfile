@@ -1,13 +1,16 @@
 require 'buildr/scala'
 require 'ruby_gntp'
 
-repositories.remote << 'http://conjars.org/repo' << 'http://repo.akka.io/releases/' << 'http://repo1.maven.org/maven2' << 'https://oss.sonatype.org/content/groups/public' << 'http://guiceyfruit.googlecode.com/svn/repo/releases'
+repositories.remote << 'http://conjars.org/repo' << 'http://repo.akka.io/releases/' << 'http://repo.typesafe.com/typesafe/releases/' << 'http://repo1.maven.org/maven2' << 'https://oss.sonatype.org/content/groups/public' << 'http://guiceyfruit.googlecode.com/svn/repo/releases'
 
 JENA_ARQ = transitive('com.hp.hpl.jena:arq:jar:2.8.8')
 JENA_TDB = transitive('com.hp.hpl.jena:tdb:jar:0.8.10')
 JGRAPHT = transitive('thirdparty:jgrapht-jdk1.6:jar:0.8.2')
-AKKA_ACTOR = transitive('se.scalablesolutions.akka:akka-actor:jar:1.2')
-AKKA_REMOTE = transitive('se.scalablesolutions.akka:akka-remote:jar:1.2')
+# AKKA_ACTOR = transitive('se.scalablesolutions.akka:akka-actor:jar:2.0')
+# AKKA_REMOTE = transitive('se.scalablesolutions.akka:akka-remote:jar:2.0')
+
+AKKA_ACTOR = transitive('com.typesafe.akka:akka-actor:jar:2.0.1')
+AKKA_REMOTE = transitive('com.typesafe.akka:akka-remote:jar:2.0.1')
 
 def add_dependencies(pkg)
   tempfile = pkg.to_s.sub(/.jar$/, "-without-dependencies.jar")
@@ -16,6 +19,7 @@ def add_dependencies(pkg)
   dependencies = compile.dependencies.map { |d| "-c #{d}"}.join(" ")
   puts "Creating fat jar"
   sh "java -jar tools/autojar.jar -bae -o #{pkg} #{dependencies} #{tempfile}" # v param for details
+  # -m target/MANIFEST.MF 
 end
 
 def create_classpath_script( dependencies, version )
@@ -23,9 +27,9 @@ def create_classpath_script( dependencies, version )
 	cp = dependencies.map( &:to_s ).join( File::PATH_SEPARATOR )
 
 	File.open( "classpath.sh", "w" ) do |f|
-		f.write( '!#/bin/sh' )
+		# f.write( '!#/bin/sh' )
 		f.write( "\nexport CLASSPATH=#{cp}\n" )
-		f.write( "export CLASSPATH=target/sparql-motifs-#{version}.jar#{File::PATH_SEPARATOR}$CLASSPATH\n" )
+		f.write( "export CLASSPATH=target/sparql-motifs-#{version}-without-dependencies.jar#{File::PATH_SEPARATOR}.#{File::PATH_SEPARATOR}$CLASSPATH\n" )
 	end
 end
 
@@ -33,12 +37,12 @@ define 'sparql-motifs' do
 	project.version = '0.0.1'
 
 	compile.with JENA_ARQ, JENA_TDB, JGRAPHT, AKKA_ACTOR, AKKA_REMOTE
-	compile.using( {:optimise => true } )
+	# compile.using( {:optimise => true } )
 
 	create_classpath_script( compile.dependencies, project.version )
 
-	package :jar
-	package(:jar).enhance{ |pkg| pkg.enhance {|pkg| add_dependencies(pkg) } }
+	package(:jar).with :manifest => manifest.merge('Main-Class' => 'motifs.commandline.Executor')
+	# package(:jar).enhance{ |pkg| pkg.enhance {|pkg| add_dependencies(pkg) } }.with :manifest => manifest.merge('Main-Class' => 'motifs.commandline.Executor')
 end
 
 # Growl setup
