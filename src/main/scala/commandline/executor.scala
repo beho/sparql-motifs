@@ -7,6 +7,7 @@ import akka.actor._
 import com.typesafe.config.ConfigFactory
 
 import scala.collection.mutable.Set
+import scala.collection.JavaConversions._
 import java.net._
 
 object Executor {
@@ -28,13 +29,13 @@ object Executor {
 				nextOption( o ++ Map( 'role -> 'both ), tail )
 			}
 
-			case "-role" :: "counter" :: port :: tail => {
+			case "-role" :: "counter" :: tail => {
 				if( o.contains( 'role ) ) {
 					println( "[error] cannot set both counter and enumerator role." )
 					scala.sys.exit(1)
 				}
 
-				nextOption( o ++ Map( 'role -> 'counter, 'port -> port.toInt ), tail )
+				nextOption( o ++ Map( 'role -> 'counter ), tail )
 			}
 
 			case "-role" :: "enumerator" :: tail => {
@@ -44,6 +45,10 @@ object Executor {
 				}
 					
 				nextOption( o ++ Map( 'role -> 'enumerator ), tail )
+			}
+
+			case "-port" :: port :: tail => {
+				nextOption( o ++ Map( 'port -> port.toInt ), tail )
 			}
 
 			case "-counter" :: addr :: tail => {
@@ -87,6 +92,11 @@ object Executor {
 		}
 
 		if( options('role).asInstanceOf[Symbol] == 'enumerator ) {
+			if( !options.contains( 'port ) ) {
+				println( "[error] missing port" )
+				return false
+			}
+
 			if( !options.contains( 'dataset ) ) {
 				println( "[error] missing dataset" )
 				return false
@@ -114,8 +124,10 @@ object Executor {
 		}
 
 		if( options( 'role ).asInstanceOf[Symbol] == 'counter ) {
-			if( !options.contains( 'port ) )
+			if( !options.contains( 'port ) ) {
+				println( "[error] missing port" )
 				return false
+			}
 
 			return true
 		}
@@ -141,6 +153,8 @@ object Executor {
 		val ip = InetAddress.getLocalHost.getHostAddress
 		println( "ip address: "+ip+"\n" )
 
+		val config = ConfigFactory.load
+
 		role match {
 			case 'counter => {
 				// val querySetName = options( 'querySetName ).asInstanceOf[String]
@@ -148,10 +162,13 @@ object Executor {
 				val port = options( 'port ).asInstanceOf[Int]
 
 				// println( "waiting for "+nodes+" nodes to connect\n" )
-				val config = ConfigFactory.load
-				// println( config.toString )
+				val configPrefix = "counter.akka.remote.netty"
+				val counterConfig = ConfigFactory.parseMap( Map( configPrefix+".hostname" -> ip.toString, configPrefix+".port" -> port ) )
+				val completeConfig = counterConfig.getConfig( "counter" ).withFallback( config.getConfig( "counter" ) )
 
-				val system = ActorSystem( "counter", config.getConfig("counter") )
+				println( completeConfig.toString )
+
+				val system = ActorSystem( "counter", completeConfig )
 				val counter = system.actorOf( Props[MotifCounter], name = "motif-counter" )
 
 				// Actor.remote.start( ip, port )
@@ -164,12 +181,19 @@ object Executor {
 				val filename = options( 'filename ).asInstanceOf[String]
 				val skipPredicateVars = options.contains( 'skip )
 
-				// val port = options( 'port ).asInstanceOf[Int]
+				val port = options( 'port ).asInstanceOf[Int]
+				println( "[info] starting on port "+port )
+
 				val counters = options( 'counters ).asInstanceOf[Set[(String, Int)]].toArray
 				
-
+				val configPrefix = "enumerator.akka.remote.netty"
+				val enumeratorConfig = ConfigFactory.parseMap( Map( configPrefix+".hostname" -> ip.toString, configPrefix+".port" -> port.toString ) )
 				// val master = actorOf( new NodeMaster( filenames, endpointURL, counterAddress ) )
-				val system = ActorSystem( "enumerator", ConfigFactory.load.getConfig("enumerator") )
+				val completeConfig = enumeratorConfig.getConfig( "enumerator" ).withFallback( config.getConfig( "enumerator" ) )
+
+				println( completeConfig.toString )
+
+				val system = ActorSystem( "enumerator", completeConfig )
 				val enumerator = system.actorOf( Props( new MotifEnumerator( filename, dataset, endpointURL, skipPredicateVars, counters ) ), name = "motif-enumerator" ) 
 
 				// Actor.remote.start( ip, port )

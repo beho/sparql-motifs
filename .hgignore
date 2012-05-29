@@ -5,4 +5,4 @@ syntax: glob
 target/*
 tdb/*
 classpath.sh
-queries1.txt*
+queries1*

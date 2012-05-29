@@ -5,9 +5,6 @@
 # PORT=52222
 DATASET="swdf"
 
-# COUNTER_HOST="10.0.0.3"
-# COUNTER_PORT=52223
-
 # echo ""
 # echo "connecting to : ${COUNTER_HOST}:${COUNTER_PORT}"
 # echo ""

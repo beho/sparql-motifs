@@ -9,6 +9,8 @@ import scala.collection.JavaConversions.asScalaSet
 import scala.annotation.tailrec
 
 import akka.actor._
+import akka.actor.SupervisorStrategy._
+import akka.util.duration._
 // import akka.dispatch.Dispatchers
 // import akka.serialization.RemoteActorSerialization._
 // import akka.event.EventHandler
@@ -89,16 +91,19 @@ class WrappedDirectedSubgraph( var graph: DirectedGraph[jena.graph.Node, motifs.
 
 			graph.addEdge( edgeNode.s, edgeNode.o, edgeNode )
 		})
-
 	}
 }
 
 
-class MotifEnumerator( val filename: String, val dataset: String, val substitutionsEndpointURL: String, val skipPredicateQueries: Boolean, counterAddrs: Array[(String, Int)] ) extends Actor with motifs.MotifHandler[jena.graph.Node, motifs.EdgeNode] {
+class MotifEnumerator( val filename: String, val dataset: String, val substitutionsEndpointURL: String, val skipPredicateQueries: Boolean, counterAddrs: Array[(String, Int)] ) extends Actor with motifs.MotifCounter[jena.graph.Node, motifs.EdgeNode] {
 	val enumerator = new motifs.MotifEnumerator( filename, dataset, substitutionsEndpointURL, skipPredicateQueries, this )
+	val dateFormat = new SimpleDateFormat( "HH:mm:ss.S" )
 
 	var counters: Array[ActorRef] = _
-	val idx = 0
+	var idx = 0
+	var acks = 0
+
+	var startTime: Long = _
 
 	override def preStart = {
 		println( "[info] starting enumerator actor "+filename )
@@ -109,36 +114,73 @@ class MotifEnumerator( val filename: String, val dataset: String, val substituti
 			context.actorFor( addrString ) 
 		})
 
-		for( c <- counters; i <- counters.indices ) { 
+		for( i <-counters.indices ) { 
+			val c = counters(i)
 			println( "[info] registering with counter "+i+" @ "+c.toString)
 			c ! StartCounting( filename, i ) 
 		}
 	}
 
 	override def postStop = {
-		println( "[info] enumerator stopped" )
+		println( "\n\n[info] enumerator stopped" )
 	}
 	
 	def receive = {
 		case Ack => {
-			enumerator.run
+			acks += 1
+			if( acks == counters.length ) { 
+				startTime = System.currentTimeMillis
+				enumerator.run
+			}
 		}
 	}
 
-	def handle( motif: DirectedGraph[jena.graph.Node, motifs.EdgeNode], queryURI: String ) {
+	override def handle( motif: DirectedGraph[jena.graph.Node, motifs.EdgeNode], queryURI: String ) {
+		super.handle( motif, queryURI )
+
+		idx = (idx + 1) % counters.length
+		// println( "sending to counter "+idx )
 		counters(idx) ! Handle( new WrappedDirectedSubgraph( motif ), queryURI )
+
+		print( "." )
+
+		if( motifsHandled % 1000 == 0 ) {
+			val diffTime = (System.currentTimeMillis - startTime) / 1000.0
+			val queriesPerSecond = enumerator.queriesRead / diffTime
+			val motifsPerSecond = motifsHandled / diffTime
+
+			val line = dateFormat.format( new Date )+"\t\t\t"+filename+"\n"+enumerator.queriesRead+" queries read\t\t\t"+enumerator.substitutionNeedingQueryCount+" with predicate vars\n"+motifsHandled+" motifs\n"+queriesPerSecond+" query/s\t\t\t"+motifsPerSecond+" motif/s"
+
+			println( "\n\n"+line+"\n" )
+		}
 	}
 
 	def close = {
 		for( c <- counters ) {
 			c ! Done
+
 			context.system.shutdown
 		}
+
+		val diffTime = (System.currentTimeMillis - startTime) / 1000.0
+		val queriesPerSecond = enumerator.queriesRead / diffTime
+		val motifsPerSecond = motifsHandled / diffTime
+
+		val line = dateFormat.format( new Date )+"\t\t\t"+filename+"\n"+enumerator.queriesRead+" queries read\t\t\t"+enumerator.substitutionNeedingQueryCount+" with predicate vars\n"+motifsHandled+" motifs\n"+queriesPerSecond+" query/s\t\t\t"+motifsPerSecond+" motif/s"
+
+		println( "\n\n"+line+"\n" )
 	}
 }
 
 class MotifCounter extends Actor {
 	var counter: motifs.TDBMotifCounter = null
+	var dbName: String = _
+	val dateFormat = new SimpleDateFormat( "HH:mm:ss.S" )
+	var startTime: Long = _
+
+	override val supervisorStrategy = OneForOneStrategy( 0, 1 minute) {
+		case _ => Stop
+	}
 
 	override def preStart = {
 		println( "[info] starting counter actor" )
@@ -146,24 +188,44 @@ class MotifCounter extends Actor {
 	}
 
 	override def postStop = {
-		println( "[info] counter stopped" )
+		println( "\n\n[info] counter stopped" )
 	}
 
 	def receive = {
 		case StartCounting( filename, part ) => {
-			println( "[info] starting counting '"+filename+"'" )
+			dbName = filename+"-"+part 
+			println( "[info] starting counting '"+dbName+"'" )
 				
-			counter = new motifs.TDBMotifCounter( filename+"-"+part )
+			counter = new motifs.TDBMotifCounter( dbName )
 
 			sender ! Ack
+
+			startTime = System.currentTimeMillis
 		}
 
 		case Handle( wrappedMotif, queryURI ) => {
 			counter.handle( wrappedMotif.graph, queryURI )
+
+			print( "." )
+
+			if( counter.motifsHandled % 1000 == 0 ) {
+				val diffTime = (System.currentTimeMillis - startTime) / 1000.0
+				val motifsPerSecond = counter.motifsHandled / diffTime
+
+				val line = dateFormat.format( new Date )+"\t\t\t"+dbName+"\n"+counter.motifsHandled+" motifs\t\t\t"+counter.uniqueMotifsEncountered+" unique motifs\n"+motifsPerSecond+" motif/s"
+
+				println( "\n\n"+line+"\n" )
+			}
 		}
 
 		case Done => {
 			println( "[info] done" )
+
+			val diffTime = (System.currentTimeMillis - startTime) / 1000.0
+			val motifsPerSecond = counter.motifsHandled / diffTime
+			val line = dateFormat.format( new Date )+"\t\t\t"+dbName+"\n"+counter.motifsHandled+" motifs\t\t\t"+counter.uniqueMotifsEncountered+" unique motifs\n"+motifsPerSecond+" motif/s"
+
+			println( "\n\n"+line+"\n" )
 
 			counter.close
 

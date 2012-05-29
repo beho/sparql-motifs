@@ -489,6 +489,10 @@ trait MotifCounter[N, E] extends MotifHandler[N, E] {
 
 	def motifsHandled: Int = handled
 	def uniqueMotifsEncountered: Int = unique
+
+	override def handle( subgraph: DirectedGraph[N, E], queryURI: String ) {
+		handled += 1
+	}
 }
 
 class TDBMotifCounter( filename: String ) extends MotifCounter[jena.graph.Node, EdgeNode] {
@@ -506,7 +510,7 @@ class TDBMotifCounter( filename: String ) extends MotifCounter[jena.graph.Node, 
 	// var uniqueMotifsCount = 0
 	// var totalMotifsCount = 0
 
-	val dir = "./tdb/"+filename.split('.').head	
+	val dir = "./tdb/"+filename
 	val dirFile = new File( dir )
 	if( !dirFile.exists ) dirFile.mkdirs
 
@@ -517,7 +521,7 @@ class TDBMotifCounter( filename: String ) extends MotifCounter[jena.graph.Node, 
 	println( "optimizer strategy: "+datasetGraph.getTransform.toString )
 	
 
-	def handle( subgraph: DirectedGraph[jena.graph.Node, EdgeNode], queryURI: String ) = {
+	override def handle( subgraph: DirectedGraph[jena.graph.Node, EdgeNode], queryURI: String ) = {
 		// println( "s: "+subgraph.toString )
 
 		TDB.sync( graphStore )
@@ -926,6 +930,9 @@ class MotifEnumerator( val filename: String, val dataset: String, val substituti
 
 	val failedSubstitutions = new PrintWriter( filename+".subs" )
 
+	def queriesRead = reader.queryCount
+	def substitutionNeedingQueryCount = reader.substitutionNeedingQueryCount
+
 	@tailrec final def run: Unit = {
 		reader.nextQueryGraph match {
 			case None => {
@@ -1014,8 +1021,6 @@ class MotifEnumerator( val filename: String, val dataset: String, val substituti
 
 	def countIn( motif: DirectedGraph[jena.graph.Node, EdgeNode], queryURI: String ) = {
 		handler.handle( motif, queryURI )
-
-		print( "." )
 
 		// if( handler.motifsHandled % 1000 == 0 ) {
 		// 	val diffTime = (System.currentTimeMillis - startTime) / 1000.0
