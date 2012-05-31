@@ -10,7 +10,7 @@ import scala.collection.mutable.Set
 import scala.collection.JavaConversions._
 import java.net._
 
-object Executor {
+object MotifExecutor {
 	val nodes = List( ("localhost", 2552), ("localhost", 2553) )
 
 

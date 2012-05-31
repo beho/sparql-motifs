@@ -1021,16 +1021,6 @@ class MotifEnumerator( val filename: String, val dataset: String, val substituti
 
 	def countIn( motif: DirectedGraph[jena.graph.Node, EdgeNode], queryURI: String ) = {
 		handler.handle( motif, queryURI )
-
-		// if( handler.motifsHandled % 1000 == 0 ) {
-		// 	val diffTime = (System.currentTimeMillis - startTime) / 1000.0
-		// 	val queriesPerSecond = reader.queryCount / diffTime
-		// 	val motifsPerSecond = handler.motifsHandled / diffTime
-
-		// 	val line = dateFormat.format( new Date )+"\t\t\t"+filename+"\n"+reader.queryCount+" queries read\t\t\t"+reader.substitutionNeedingQueryCount+" with predicate vars\n"+handler.motifsHandled.toString+" motifs\t\t\t"+counter.uniqueMotifsEncountered+" unique motifs\n"+queriesPerSecond.toString+" query/s\t\t\t"+motifsPerSecond.toString+" motif/s"
-
-		// 	println( "\n\n"+line+"\n" )
-		// }
 	}
 
 	class WrappedDirectedGraph( var graph: DirectedGraph[jena.graph.Node, motifs.EdgeNode] ) {
@@ -1041,13 +1031,6 @@ class MotifEnumerator( val filename: String, val dataset: String, val substituti
 			for( e <- graph.edgeSet; if e.p.isVariable ) {
 				vars = vars + e.p.asInstanceOf[Var]
 			}
-
-			// graph.edgeSet.foreach( e => {
-			// 	if( e.p.isVariable ) {
-			// 		// println( e.p.getClass.toString )
-			// 		vars = vars + e.p.asInstanceOf[Var]
-			// 	}
-			// })
 
 			return vars
 		}

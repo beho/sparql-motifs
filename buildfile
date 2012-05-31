@@ -38,6 +38,7 @@ define 'sparql-motifs' do
 
 	compile.with JENA_ARQ, JENA_TDB, JGRAPHT, AKKA_ACTOR, AKKA_REMOTE
 	# compile.using( {:optimise => true } )
+	compile.using( {:deprecation => true } )
 
 	create_classpath_script( compile.dependencies, project.version )
 

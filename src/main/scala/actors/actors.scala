@@ -10,6 +10,9 @@ import scala.annotation.tailrec
 
 import akka.actor._
 import akka.actor.SupervisorStrategy._
+import akka.dispatch.Await
+import akka.pattern.ask
+import akka.util._
 import akka.util.duration._
 // import akka.dispatch.Dispatchers
 // import akka.serialization.RemoteActorSerialization._
@@ -32,11 +35,13 @@ abstract class Message
 
 case class StartCounting( filename: String, part: Int ) extends Message 
 case class Handle( motif: WrappedDirectedSubgraph, queryURI: String ) extends Message
-case class Ack extends Message
+case object Ack extends Message
+case object Sync extends Message
+case object Done extends Message
 
 // case class Register( parts: Set[String] ) extends Message
 // case class Run() extends Message
-case class Done extends Message
+
 
 // case class GetSubstitutions( query: Query, predicateVars: Set[Var] ) extends Message
 // case class Substitutions( substitutions: Option[List[Binding]] ) extends Message
@@ -153,6 +158,18 @@ class MotifEnumerator( val filename: String, val dataset: String, val substituti
 
 			println( "\n\n"+line+"\n" )
 		}
+
+		if( motifsHandled % 100000 == 0) {
+			print( "\n\nsyncing "+counters.length+" counters after "+motifsHandled+" motifs ... ")
+			implicit val timeout = Timeout( Duration( 168, "hours" ) )
+			for( i <- counters.indices ) {
+				val c = counters(i)
+				val future = c ? Sync
+				Await.ready( future, Duration.Inf )
+				print( i+" " )
+			}
+			println( "\n\n" )
+		}
 	}
 
 	def close = {
@@ -218,8 +235,13 @@ class MotifCounter extends Actor {
 			}
 		}
 
+		case Sync => {
+			println( "\n[info] syncing" )
+			sender ! Ack
+		}
+
 		case Done => {
-			println( "[info] done" )
+			println( "\n[info] done" )
 
 			val diffTime = (System.currentTimeMillis - startTime) / 1000.0
 			val motifsPerSecond = counter.motifsHandled / diffTime

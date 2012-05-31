@@ -1,7 +1,8 @@
 #!/bin/sh
 
 JAR_PATH=target/sparql-motifs-0.0.1.jar
-CMD_CLASS=motifs.commandline.Executor
+MOTIF_CMD_CLASS=motifs.commandline.MotifExecutor
+MERGE_CMD_CLASS=motifs.commandline.MergeExecutor
 
 
 BASE_PATH=`pwd`
@@ -9,7 +10,7 @@ BASE_PATH=`pwd`
 
 # LIB_PATH=$BASE_PATH/lib
 
-# LIB_PATH=../Query/lib
+LIB_PATH=../Query/lib
 
 SCRIPTS_PATH=scala-scripts
 
@@ -37,7 +38,7 @@ echo ""
 # echo "lib               : ${LIB_PATH}"
 echo "scala             : ${SCALA_HOME}"
 echo "JVM args          : ${JVM_ARGS}"
-# echo "classpath         : ${CLASSPATH}"
+echo "classpath         : ${CLASSPATH}"
 echo ""
 echo ""
 echo ""
