@@ -6,9 +6,6 @@ repositories.remote << 'http://conjars.org/repo' << 'http://repo.akka.io/release
 JENA_ARQ = transitive('com.hp.hpl.jena:arq:jar:2.8.8')
 JENA_TDB = transitive('com.hp.hpl.jena:tdb:jar:0.8.10')
 JGRAPHT = transitive('thirdparty:jgrapht-jdk1.6:jar:0.8.2')
-# AKKA_ACTOR = transitive('se.scalablesolutions.akka:akka-actor:jar:2.0')
-# AKKA_REMOTE = transitive('se.scalablesolutions.akka:akka-remote:jar:2.0')
-
 AKKA_ACTOR = transitive('com.typesafe.akka:akka-actor:jar:2.0.1')
 AKKA_REMOTE = transitive('com.typesafe.akka:akka-remote:jar:2.0.1')
 
