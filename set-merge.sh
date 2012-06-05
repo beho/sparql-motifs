@@ -34,5 +34,6 @@ do
 	echo ""
 	echo ""
 
-	scala scripts/tdb-merge.scala "$@"/"${ordered_set[$i]}" "$merged_set_dir"
+	./merge.sh "$@"/"${ordered_set[$i]}" "$merged_set_dir"
+	# scala scripts/tdb-merge.scala "$@"/"${ordered_set[$i]}" "$merged_set_dir"
 done

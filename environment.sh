@@ -4,7 +4,8 @@ JAR_PATH=target/sparql-motifs-0.0.1.jar
 MOTIF_CMD_CLASS=motifs.commandline.MotifExecutor
 MERGE_CMD_CLASS=motifs.commandline.MergeExecutor
 
-JVM_ARGS="-Xmx2048M -XX:+UseConcMarkSweepGC"
+# JAVA_OPTS is pass by scala to java
+JAVA_OPTS="-Xmx2048M -XX:+UseConcMarkSweepGC"
 
 . classpath.sh
 

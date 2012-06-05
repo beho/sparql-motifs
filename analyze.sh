@@ -4,5 +4,4 @@
 
 DATASET="dbpedia"
 
-# nohup $SCALA_HOME/bin/scala scripts/motifs-run.scala -role both -dataset $DATASET $@ > counter-$DATASET.out &
-scala $SCRIPTS_PATH/motifs-run.scala -role both -dataset $DATASET -skip-pvq $@
+scala -cp target/sparql-motifs-0.0.1.jar $MOTIF_CMD_CLASS -role both -dataset $DATASET -skip-pvq $@

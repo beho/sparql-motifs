@@ -170,9 +170,6 @@ object MotifExecutor {
 
 				val system = ActorSystem( "counter", completeConfig )
 				val counter = system.actorOf( Props[MotifCounter], name = "motif-counter" )
-
-				// Actor.remote.start( ip, port )
-				// Actor.remote.register( "motifs-counter", counter )
 			}
 
 			case 'enumerator => {
@@ -195,9 +192,6 @@ object MotifExecutor {
 
 				val system = ActorSystem( "enumerator", completeConfig )
 				val enumerator = system.actorOf( Props( new MotifEnumerator( filename, dataset, endpointURL, skipPredicateVars, counters ) ), name = "motif-enumerator" ) 
-
-				// Actor.remote.start( ip, port )
-				// Actor.remote.register( "enumberator", enumerator )
 			}
 
 			case 'both => {

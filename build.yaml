@@ -1,0 +1,2 @@
+scala.version: 2.9.1
+scala.test: 'org.scalatest:scalatest_2.9.0:jar:1.8'
