@@ -1,12 +1,6 @@
 package motifs.actors
 
-import java.io.{Serializable, ObjectOutputStream, ObjectInputStream}
-import java.text.SimpleDateFormat
-import java.util.Date
-
-import scala.collection._
-import scala.collection.JavaConversions.asScalaSet
-import scala.annotation.tailrec
+import motifs.UnionBranches
 
 import akka.actor._
 import akka.actor.SupervisorStrategy._
@@ -25,6 +19,13 @@ import com.hp.hpl.jena.sparql.engine.binding.Binding
 
 import org.jgrapht.DirectedGraph
 import org.jgrapht.graph.{DirectedPseudograph, DirectedSubgraph}
+
+import java.io.{Serializable, ObjectOutputStream, ObjectInputStream}
+import java.text.SimpleDateFormat
+import java.util.Date
+import scala.collection._
+import scala.collection.JavaConversions.asScalaSet
+import scala.annotation.tailrec
 
 // import org.jivesoftware._
 
@@ -99,6 +100,52 @@ class WrappedDirectedSubgraph( var graph: DirectedGraph[jena.graph.Node, motifs.
 	}
 }
 
+object DisjunctiveTriplesMotifFilter {
+	def apply( motif: DirectedGraph[jena.graph.Node, motifs.EdgeNode] ): Boolean = {
+		var motifBranches = new UnionBranches()
+		println( motif.edgeSet.size+" edges" )
+		for( e <- motif.edgeSet ) {
+			println("motif "+motifBranches.toString+" edge "+e.p.toString+" "+e.unionBranches.toString )
+			for( (union: Int, branch: Boolean) <- e.unionBranches ) {
+				motifBranches.get( union ) match {
+					case Some( motifBranch ) => { 
+						if( motifBranch != branch ) {
+							println( "\tfalse" )
+							return false
+						}
+					}
+					case None => motifBranches.put( union, branch )
+				}
+			}
+
+			// for( path <- pathsSet ) {
+			// 	if( !inSameUnionPath( e.))
+			// }
+			// // println("testing "+e.unionPath+" longest "+longestUnionPath )
+			// if( e.unionPath.length > longestUnionPath.length ) {
+			// 	if( !e.unionPath.startsWith( longestUnionPath ) ) return false
+
+			// 	longestUnionPath = e.unionPath
+			// }
+			// else {
+			// 	if( !longestUnionPath.startsWith( e.unionPath ) ) return false
+			// }
+		}
+
+		println( "\ttrue" )
+		return true
+	}
+}
+
+object OnlyOptionalPatternsFilter {
+	def apply( motif: DirectedGraph[jena.graph.Node, motifs.EdgeNode] ): Boolean = {
+		for( e <- motif.edgeSet ) {
+			if( !e.isOptional ) return true
+		}
+		print("o")
+		return false
+	}
+}
 
 class MotifEnumerator( val filename: String, val dataset: String, val substitutionsEndpointURL: String, val skipPredicateQueries: Boolean, counterAddrs: Array[(String, Int)] ) extends Actor with motifs.MotifCounter[jena.graph.Node, motifs.EdgeNode] {
 	val enumerator = new motifs.MotifEnumerator( filename, dataset, substitutionsEndpointURL, skipPredicateQueries, this )
@@ -109,6 +156,7 @@ class MotifEnumerator( val filename: String, val dataset: String, val substituti
 	var acks = 0
 
 	var startTime: Long = _
+	var filtered = 0
 
 	override def preStart = {
 		println( "[info] starting enumerator actor "+filename )
@@ -119,7 +167,7 @@ class MotifEnumerator( val filename: String, val dataset: String, val substituti
 			context.actorFor( addrString ) 
 		})
 
-		for( i <-counters.indices ) { 
+		for( i <- counters.indices ) { 
 			val c = counters(i)
 			println( "[info] registering with counter "+i+" @ "+c.toString)
 			c ! StartCounting( filename, i ) 
@@ -141,6 +189,12 @@ class MotifEnumerator( val filename: String, val dataset: String, val substituti
 	}
 
 	override def handle( motif: DirectedGraph[jena.graph.Node, motifs.EdgeNode], queryURI: String ) {
+		if( !DisjunctiveTriplesMotifFilter( motif ) || !OnlyOptionalPatternsFilter( motif ) ) {
+			filtered += 1
+			if( filtered % 10000 == 0 ) println( "\n[info] filtered: "+filtered )
+			return
+		}
+
 		super.handle( motif, queryURI )
 
 		idx = (idx + 1) % counters.length
@@ -154,7 +208,7 @@ class MotifEnumerator( val filename: String, val dataset: String, val substituti
 			val queriesPerSecond = enumerator.queriesRead / diffTime
 			val motifsPerSecond = motifsHandled / diffTime
 
-			val line = dateFormat.format( new Date )+"\t\t\t"+filename+"\n"+enumerator.queriesRead+" queries read\t\t\t"+enumerator.substitutionNeedingQueryCount+" with predicate vars\n"+motifsHandled+" motifs\n"+queriesPerSecond+" query/s\t\t\t"+motifsPerSecond+" motif/s"
+			val line = dateFormat.format( new Date )+"\t\t\t"+filename+"\n"+enumerator.queriesRead+" queries read\t\t\t"+enumerator.substitutionNeedingQueryCount+" with predicate vars\n"+motifsHandled+" motifs\t\t\t"+filtered+" filtered\n"+queriesPerSecond+" query/s\t\t\t"+motifsPerSecond+" motif/s"
 
 			println( "\n\n"+line+"\n" )
 		}
@@ -183,7 +237,7 @@ class MotifEnumerator( val filename: String, val dataset: String, val substituti
 		val queriesPerSecond = enumerator.queriesRead / diffTime
 		val motifsPerSecond = motifsHandled / diffTime
 
-		val line = dateFormat.format( new Date )+"\t\t\t"+filename+"\n"+enumerator.queriesRead+" queries read\t\t\t"+enumerator.substitutionNeedingQueryCount+" with predicate vars\n"+motifsHandled+" motifs\n"+queriesPerSecond+" query/s\t\t\t"+motifsPerSecond+" motif/s"
+		val line = dateFormat.format( new Date )+"\t\t\t"+filename+"\n"+enumerator.queriesRead+" queries read\t\t\t"+enumerator.substitutionNeedingQueryCount+" with predicate vars\n"+motifsHandled+" motifs\t\t\t"+filtered+" filtered\n"+queriesPerSecond+" query/s\t\t\t"+motifsPerSecond+" motif/s"
 
 		println( "\n\n"+line+"\n" )
 	}

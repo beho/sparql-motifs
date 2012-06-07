@@ -50,10 +50,21 @@ object NodecHolder {
 }
 
 
-class EdgeNode( var p: jena.graph.Node, var s: jena.graph.Node, var o: jena.graph.Node, var unionPath: String = "" ) extends java.io.Serializable {
+class EdgeNode( var p: jena.graph.Node, var s: jena.graph.Node, var o: jena.graph.Node, var unionBranches: Map[Int, Boolean] = new UnionBranches(), var isOptional: Boolean = false ) extends java.io.Serializable {
 
 	override def toString: String = {
 		p.toString
+	}
+
+	override def equals( o: Any ): Boolean = {
+		if( o.isInstanceOf[EdgeNode] ) {
+			val e = o.asInstanceOf[EdgeNode]
+
+			// more edges can have same spo (when using unions), the union branch identifies the edge uniquely
+			return( e.s == this.s && e.p == this.p && e.o == this.o && e.unionBranches == this.unionBranches )
+		}
+
+		return false
 	}
 
 	// override def equals( o: Any ): Boolean = {
@@ -83,8 +94,8 @@ class EdgeNode( var p: jena.graph.Node, var s: jena.graph.Node, var o: jena.grap
 		out.writeObject( pBuffer.array )
 		out.writeObject( oBuffer.array )
 
-		out.writeInt( unionPath.length )
-		out.writeChars( unionPath )
+		// out.writeInt( unionPath.length )
+		// out.writeChars( unionPath )
 
 		// println( "writing: "+s.toString+" "+p.toString+" "+o.toString )
 	}
@@ -96,11 +107,11 @@ class EdgeNode( var p: jena.graph.Node, var s: jena.graph.Node, var o: jena.grap
 		p = nodecSSE.decode( ByteBuffer.wrap( in.readObject.asInstanceOf[Array[Byte]] ), null )
 		o = nodecSSE.decode( ByteBuffer.wrap( in.readObject.asInstanceOf[Array[Byte]] ), null )
 
-		val pathLength = in.readInt
-		val buffer = Array[Char]()
+		// val pathLength = in.readInt
+		// val buffer = Array[Char]()
 
-		0.to( pathLength - 1 ).foreach( i => { buffer(i) = in.readChar })
-		unionPath = new String( buffer )
+		// 0.to( pathLength - 1 ).foreach( i => { buffer(i) = in.readChar })
+		// unionPath = new String( buffer )
 
 		// println( "reading: "+s.toString+" "+p.toString+" "+o.toString)
 	}
@@ -130,45 +141,45 @@ class EdgeNode( var p: jena.graph.Node, var s: jena.graph.Node, var o: jena.grap
 // }
 
 
-class GraphBuilder extends OpVisitorBase {
-	// var patterns = immutable.Set[jena.graph.Triple]()
-	var patternsContainPredicateVar = false
-	var predicateVars = Set[Var]()
+// class GraphBuilder extends OpVisitorBase {
+// 	// var patterns = immutable.Set[jena.graph.Triple]()
+// 	var patternsContainPredicateVar = false
+// 	var predicateVars = Set[Var]()
 
-	val termToBNode = new mutable.HashMap[jena.graph.Node, jena.graph.Node]
+// 	val termToBNode = new mutable.HashMap[jena.graph.Node, jena.graph.Node]
 
-	var graph = new DirectedPseudograph[jena.graph.Node, EdgeNode]( classOf[EdgeNode] )
+// 	var graph = new DirectedPseudograph[jena.graph.Node, EdgeNode]( classOf[EdgeNode] )
 
-	override def visit( opBGP: OpBGP ) {
-		val newPatterns = scala.collection.JavaConversions.asScalaBuffer( opBGP.getPattern.getList )
-		// patterns = patterns ++ newPatterns
+// 	override def visit( opBGP: OpBGP ) {
+// 		val newPatterns = scala.collection.JavaConversions.asScalaBuffer( opBGP.getPattern.getList )
+// 		// patterns = patterns ++ newPatterns
 
-		newPatterns.foreach( pattern => {
-			val s = pattern.getSubject
-			val p = pattern.getPredicate
-			val o = pattern.getObject
+// 		newPatterns.foreach( pattern => {
+// 			val s = pattern.getSubject
+// 			val p = pattern.getPredicate
+// 			val o = pattern.getObject
 
-			if( !termToBNode.contains( s ) ) {
-				termToBNode.put( s, jena.graph.Node.createAnon )
-			}
+// 			if( !termToBNode.contains( s ) ) {
+// 				termToBNode.put( s, jena.graph.Node.createAnon )
+// 			}
 			
-			if( !termToBNode.contains( o ) ){
-				termToBNode.put( o, jena.graph.Node.createAnon )
-			}
+// 			if( !termToBNode.contains( o ) ){
+// 				termToBNode.put( o, jena.graph.Node.createAnon )
+// 			}
 
-			val source = termToBNode( s )
-			val target = termToBNode( o )
+// 			val source = termToBNode( s )
+// 			val target = termToBNode( o )
 
-			graph.addVertex( source )
-			graph.addVertex( target )
-			graph.addEdge( source, target, new EdgeNode( p, source, target ) )
+// 			graph.addVertex( source )
+// 			graph.addVertex( target )
+// 			graph.addEdge( source, target, new EdgeNode( p, source, target ) )
 
-			val predicate = pattern.getPredicate
-			if( predicate.isVariable ) {
-				patternsContainPredicateVar = true
-				predicateVars = predicateVars + Var.alloc( predicate )
-			}
-		})
-	}
-}
+// 			val predicate = pattern.getPredicate
+// 			if( predicate.isVariable ) {
+// 				patternsContainPredicateVar = true
+// 				predicateVars = predicateVars + Var.alloc( predicate )
+// 			}
+// 		})
+// 	}
+// }
 

@@ -1,6 +1,6 @@
 package motifs.experiments
 
-import motifs._
+import motifs.{EdgeNode, UnionBranches}
 
 import com.hp.hpl._
 import com.hp.hpl.jena.query._
@@ -26,9 +26,9 @@ object RunBuilder {
 
 		println( op.toString() )
 
-		val graph = GraphBuilder.buildFrom( op )
+		val graph = new GraphBuilder( op ).build
 
-		for( e <- graph.edgeSet ) { println(e.p+" "+e.unionPath) }
+		for( e <- graph.edgeSet ) { println(e.p+" "+e.unionBranches+" "+e.isOptional) }
 
 		// val builder = new GraphBuilderWithUnion
 
@@ -48,38 +48,44 @@ object RunBuilder {
 	}
 }
 
-object GraphBuilder {
+class GraphBuilder( operator: Op ) {
 	val graph = newGraph
 	val termToBNode = new mutable.HashMap[jena.graph.Node, jena.graph.Node]
 	var predicateVars = Set[Var]()
 	var patternsContainPredicateVar = false
 
-	def buildFrom( operator: Op ): DirectedPseudograph[jena.graph.Node, motifs.EdgeNode] = {
-		walk( operator, "00c", 0 )
+	var unionIdx = 0
+
+	def build: DirectedPseudograph[jena.graph.Node, motifs.EdgeNode] = {
+		walk( operator, new UnionBranches )
 		graph
 	}
 
 	private def newGraph = new DirectedPseudograph[jena.graph.Node, EdgeNode]( classOf[EdgeNode] )
 
-	private def walk( operator: Op, unionPath: String, unionDepth: Int ) {
+	private def walk( operator: Op, branches: Map[Int, Boolean], optional: Boolean = false ) {
 		operator match {
-			case o: op.OpBGP => addEdgesFrom( o.getPattern.getList, unionPath )
+			case o: op.OpBGP => addEdgesFrom( o.getPattern.getList, branches, optional )
 			case o: op.OpUnion => {
-				val newUnionDepth = unionDepth + 1
-				walk( o.getLeft, unionPath+"%02dl".format( newUnionDepth ), newUnionDepth )
-				walk( o.getRight, unionPath+"%02dr".format( newUnionDepth ), newUnionDepth )
+				unionIdx += 1
+				walk( o.getLeft, branches + ((unionIdx, false)), optional )
+				walk( o.getRight, branches + ((unionIdx, true)), optional )
+			}
+			case o: op.OpLeftJoin => {
+				walk( o.getLeft, branches, optional )
+				walk( o.getRight, branches, true )
 			}
 			case o: op.Op0 => {}
-			case o: op.Op1 => walk( o.getSubOp, unionPath, unionDepth )
+			case o: op.Op1 => walk( o.getSubOp, branches, optional )
 			case o: op.Op2 => {
-				walk( o.getLeft, unionPath, unionDepth )
-				walk( o.getRight, unionPath, unionDepth )
+				walk( o.getLeft, branches, optional )
+				walk( o.getRight, branches, optional )
 			}
 			case _ => // TODO OpN, OpExt
 		}
 	}
 
-	private def addEdgesFrom( triples: java.util.List[jena.graph.Triple], unionPath: String ) {
+	private def addEdgesFrom( triples: java.util.List[jena.graph.Triple], branches: Map[Int, Boolean], optional: Boolean ) {
 		triples.foreach( pattern => {
 			val s = pattern.getSubject
 			val p = pattern.getPredicate
@@ -98,7 +104,7 @@ object GraphBuilder {
 
 			graph.addVertex( source )
 			graph.addVertex( target )
-			graph.addEdge( source, target, new EdgeNode( p, source, target, unionPath ) )
+			graph.addEdge( source, target, new EdgeNode( p, source, target, branches, optional ) )
 
 			val predicate = pattern.getPredicate
 			if( predicate.isVariable ) {

@@ -1,5 +1,7 @@
 package motifs
 
+import motifs.experiments.GraphBuilder
+
 import com.hp.hpl._
 import com.hp.hpl.jena.query._
 import com.hp.hpl.jena.sparql.algebra._
@@ -86,11 +88,14 @@ class QueryReader( filename: String, predefinedPrefixes: String = "", skipPredic
 	}
 
 	private def buildQueryGraph( line: String, prefixes: String = "" ): QueryGraph = {
-		val builder = new GraphBuilder
+		// val builder = new GraphBuilder
 				
 		val query = QueryFactory.create( prefixes + line )
 		val op = Algebra.compile( query )
-		OpWalker.walk( op, builder )
+
+		val builder = new GraphBuilder( op )
+		builder.build
+		// OpWalker.walk( op, builder )
 
 		queryCount += 1
 		val queryURI = queryURITemplate+"/"+filename+"#"+queryCount.toString
@@ -103,7 +108,7 @@ class QueryReader( filename: String, predefinedPrefixes: String = "", skipPredic
 				predicateVarQueries.println( line )
 				return InvalidGraph()
 			}
-			else{
+			else {
 				return SubstitutionsNeedingGraph( builder.graph, queryURI, query, builder.predicateVars )
 			}
 		}

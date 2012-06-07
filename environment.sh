@@ -20,6 +20,6 @@ PATH=$PATH:$SCALA_HOME/bin:$TDBROOT/bin
 echo "scala             : ${SCALA_HOME}"
 echo "tdbroot           : ${TDBROOT}"
 echo "JVM args          : ${JVM_ARGS}"
-echo "classpath         : ${CLASSPATH}"
+# echo "classpath         : ${CLASSPATH}"
 echo ""
 echo ""
