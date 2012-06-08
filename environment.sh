@@ -1,11 +1,11 @@
-#!/bin/sh
+#!/bin/bash
 
-JAR_PATH=target/sparql-motifs-0.0.1.jar
-MOTIF_CMD_CLASS=motifs.commandline.MotifExecutor
-MERGE_CMD_CLASS=motifs.commandline.MergeExecutor
+export JAR_PATH=target/sparql-motifs-0.0.1.jar
+export MOTIF_CMD_CLASS=motifs.commandline.MotifExecutor
+export MERGE_CMD_CLASS=motifs.commandline.MergeExecutor
 
 # JAVA_OPTS is pass by scala to java
-JAVA_OPTS="-Xmx2048M -XX:+UseConcMarkSweepGC"
+export JAVA_OPTS="-Xmx2048M -XX:+UseConcMarkSweepGC"
 
 . classpath.sh
 
@@ -15,11 +15,10 @@ JAVA_OPTS="-Xmx2048M -XX:+UseConcMarkSweepGC"
 export SCALA_HOME=/opt/local/share/scala-2.9
 export TDBROOT=/Users/beho/Projects/Query/lib/TDB-0.8.10
 
-PATH=$PATH:$SCALA_HOME/bin:$TDBROOT/bin
+export PATH=$PATH:$SCALA_HOME/bin:$TDBROOT/bin
 
 echo "scala             : ${SCALA_HOME}"
 echo "tdbroot           : ${TDBROOT}"
-echo "JVM args          : ${JVM_ARGS}"
 # echo "classpath         : ${CLASSPATH}"
 echo ""
 echo ""

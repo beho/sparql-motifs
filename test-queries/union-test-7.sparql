@@ -1,0 +1,1 @@
+PREFIX foaf: <http://xmlns.com/foaf/0.1/> SELECT ?p WHERE { {?s foaf:name ?v1} UNION {?s foaf:surname ?v2. { {?s foaf:family_name ?v3} UNION {?s foaf:grandname ?v4}}} }

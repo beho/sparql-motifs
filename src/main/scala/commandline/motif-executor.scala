@@ -166,7 +166,7 @@ object MotifExecutor {
 				val counterConfig = ConfigFactory.parseMap( Map( configPrefix+".hostname" -> ip.toString, configPrefix+".port" -> port ) )
 				val completeConfig = counterConfig.getConfig( "counter" ).withFallback( config.getConfig( "counter" ) )
 
-				println( completeConfig.toString )
+				// println( completeConfig.toString )
 
 				val system = ActorSystem( "counter", completeConfig )
 				val counter = system.actorOf( Props[MotifCounter], name = "motif-counter" )
@@ -188,7 +188,7 @@ object MotifExecutor {
 				// val master = actorOf( new NodeMaster( filenames, endpointURL, counterAddress ) )
 				val completeConfig = enumeratorConfig.getConfig( "enumerator" ).withFallback( config.getConfig( "enumerator" ) )
 
-				println( completeConfig.toString )
+				// println( completeConfig.toString )
 
 				val system = ActorSystem( "enumerator", completeConfig )
 				val enumerator = system.actorOf( Props( new MotifEnumerator( filename, dataset, endpointURL, skipPredicateVars, counters ) ), name = "motif-enumerator" ) 

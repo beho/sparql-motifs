@@ -1,5 +1,3 @@
-#!/bin/sh
+#!/bin/bash
 
-. environment.sh
-
-scala -cp target/sparql-motifs-0.0.1.jar $MERGE_CMD_CLASS $@
+scala -cp $JAR_PATH $MERGE_CMD_CLASS $@
