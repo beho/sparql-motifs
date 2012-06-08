@@ -6,6 +6,7 @@ import com.hp.hpl._
 import com.hp.hpl.jena.query._
 import com.hp.hpl.jena.sparql.algebra._
 import com.hp.hpl.jena.sparql.core.Var
+import org.jgrapht.alg.ConnectivityInspector
 import org.jgrapht.graph._
 
 import java.io._
@@ -15,15 +16,14 @@ import scala.collection._
 
 
 abstract class QueryGraph
-case class CompleteGraph( graph: DirectedPseudograph[jena.graph.Node, EdgeNode], uri: String ) extends QueryGraph
-case class SubstitutionsNeedingGraph( graph: DirectedPseudograph[jena.graph.Node, EdgeNode], uri: String, query: Query, predicateVars: Set[Var] ) extends QueryGraph
+case class CompleteGraph( graph: DirectedPseudograph[jena.graph.Node, EdgeNode], uri: String, line:String, connected: Boolean ) extends QueryGraph
+case class SubstitutionsNeedingGraph( graph: DirectedPseudograph[jena.graph.Node, EdgeNode], uri: String, query: Query, line: String, predicateVars: Set[Var], connected: Boolean ) extends QueryGraph
 case class InvalidGraph() extends QueryGraph
 
 
 class QueryReader( filename: String, predefinedPrefixes: String = "", skipPredicateVarQueries: Boolean = false ) {
 	val scanner = new Scanner( new FileInputStream( filename ), "UTF-8" )
 	val errors = new PrintWriter( filename+".errors" )
-	val predicateVarQueries = new PrintWriter( filename+".predicate-vars")
 
 	val queryURITemplate = "http://fit.vutbr.cz/query-analysis/query"
 
@@ -95,25 +95,24 @@ class QueryReader( filename: String, predefinedPrefixes: String = "", skipPredic
 
 		val builder = new GraphBuilder( op )
 		builder.build
+
+		val graph = builder.graph
 		// OpWalker.walk( op, builder )
 
 		queryCount += 1
 		val queryURI = queryURITemplate+"/"+filename+"#"+queryCount.toString
 
+		val inspector = new ConnectivityInspector[jena.graph.Node, EdgeNode]( graph )
+		val connected = inspector.isGraphConnected
+
 		if( builder.patternsContainPredicateVar ) {
 			substitutionNeedingQueryCount += 1
 
-			if( skipPredicateVarQueries ) {
-				print( "s" )
-				predicateVarQueries.println( line )
-				return InvalidGraph()
-			}
-			else {
-				return SubstitutionsNeedingGraph( builder.graph, queryURI, query, builder.predicateVars )
-			}
+			return SubstitutionsNeedingGraph( graph, queryURI, query, line, builder.predicateVars, connected )
+
 		}
 		else {
-			return CompleteGraph( builder.graph, queryURI )
+			return CompleteGraph( graph, queryURI, line, connected )
 		}
 	}
 

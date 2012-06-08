@@ -18,6 +18,9 @@ class MotifEnumerator( val filename: String, val dataset: String, val substituti
 	val reader = new QueryReader( filename, motifs.Prefixes.forDataset( dataset), skipPredicateVarQueries )
 	val subgraphEnumerator = new ConnectedSubgraphEnumerator[jena.graph.Node, motifs.EdgeNode]()
 	val substitutor = new PredicateVarSubstitutor( substitutionsEndpointURL )
+
+	val predicateVarQueries = new PrintWriter( filename+".predicate-vars" )
+	val disconnectedQueries = new PrintWriter( filename+".disconnected" )
 	// val counter = new MotifsCounter( filename )
 
 	val dateFormat = new SimpleDateFormat( "HH:mm:ss.S" )
@@ -30,6 +33,8 @@ class MotifEnumerator( val filename: String, val dataset: String, val substituti
 
 	def queriesRead = reader.queryCount
 	def substitutionNeedingQueryCount = reader.substitutionNeedingQueryCount
+
+	println( "[info] skipping disconnected queries - writing to "+filename+".disconnected" )
 
 	@tailrec final def run: Unit = {
 		reader.nextQueryGraph match {
@@ -47,34 +52,53 @@ class MotifEnumerator( val filename: String, val dataset: String, val substituti
 				reader.close
 				handler.close
 				failedSubstitutions.close
+				predicateVarQueries.close
+				disconnectedQueries.close
 			}
-			case Some( CompleteGraph( graph, uri ) ) => {
-				findMotifs( subgraphEnumerator.streamFor( graph ), uri )
+			case Some( CompleteGraph( graph, uri, line, connected ) ) => {
+				if( !connected ) {
+					disconnectedQueries.println( line )
+				}
+				else {
+					findMotifs( subgraphEnumerator.streamFor( graph ), uri )
+				}
 
 				run
 			}
-			case Some( SubstitutionsNeedingGraph( graph, uri, query, predicateVars ) ) => {
-				if( System.currentTimeMillis - lastSubstitutionsTime < waitMs ) {
-					Thread.sleep( waitMs )
+			case Some( SubstitutionsNeedingGraph( graph, uri, query, line, predicateVars, connected ) ) => {
+				if( !connected ) {
+					disconnectedQueries.println( line )
 				}
-
-				try {
-					val substitutions = substitutor.substitutionsFor( query, predicateVars )
-					// println(substitutions.toString)
-					
-					findMotifsWithSubstitutions( subgraphEnumerator.streamFor( graph ), uri, substitutions )
-				}
-				catch {
-					case e: Exception => {
-						println( "\nFAILED TO OBTAIN SUBSTITUTITIONS" )
-						
-						println( e.getMessage+"\n" )
-						println( query.toString )
-
-						// failedSubstitutions.println( e.getMessage+"\n" )
-						failedSubstitutions.println( query.toString )
-						
-						// scala.sys.exit(1)
+				else	
+				{
+					if( skipPredicateVarQueries ) {
+						print( "s" )
+						predicateVarQueries.println( line )
+					}
+					else{ 				
+						if( System.currentTimeMillis - lastSubstitutionsTime < waitMs ) {
+							Thread.sleep( waitMs )
+						}
+		
+						try {
+							val substitutions = substitutor.substitutionsFor( query, predicateVars )
+							// println(substitutions.toString)
+							
+							findMotifsWithSubstitutions( subgraphEnumerator.streamFor( graph ), uri, substitutions )
+						}
+						catch {
+							case e: Exception => {
+								println( "\nFAILED TO OBTAIN SUBSTITUTITIONS" )
+								
+								println( e.getMessage+"\n" )
+								println( query.toString )
+		
+								// failedSubstitutions.println( e.getMessage+"\n" )
+								failedSubstitutions.println( line )
+								
+								// scala.sys.exit(1)
+							}
+						}
 					}
 				}
 

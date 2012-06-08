@@ -103,14 +103,14 @@ class WrappedDirectedSubgraph( var graph: DirectedGraph[jena.graph.Node, motifs.
 object DisjunctiveTriplesMotifFilter {
 	def apply( motif: DirectedGraph[jena.graph.Node, motifs.EdgeNode] ): Boolean = {
 		var motifBranches = new UnionBranches()
-		println( motif.edgeSet.size+" edges" )
+		// println( motif.edgeSet.size+" edges" )
 		for( e <- motif.edgeSet ) {
-			println("motif "+motifBranches.toString+" edge "+e.p.toString+" "+e.unionBranches.toString )
+			// println("motif "+motifBranches.toString+" edge "+e.p.toString+" "+e.unionBranches.toString )
 			for( (union: Int, branch: Boolean) <- e.unionBranches ) {
 				motifBranches.get( union ) match {
 					case Some( motifBranch ) => { 
 						if( motifBranch != branch ) {
-							println( "\tfalse" )
+							// println( "\tfalse" )
 							return false
 						}
 					}
@@ -132,11 +132,12 @@ object DisjunctiveTriplesMotifFilter {
 			// }
 		}
 
-		println( "\ttrue" )
+		// println( "\ttrue" )
 		return true
 	}
 }
 
+// not used - it makes sense to analyse motifs in optional patterns
 object OnlyOptionalPatternsFilter {
 	def apply( motif: DirectedGraph[jena.graph.Node, motifs.EdgeNode] ): Boolean = {
 		for( e <- motif.edgeSet ) {
@@ -189,7 +190,7 @@ class MotifEnumerator( val filename: String, val dataset: String, val substituti
 	}
 
 	override def handle( motif: DirectedGraph[jena.graph.Node, motifs.EdgeNode], queryURI: String ) {
-		if( !DisjunctiveTriplesMotifFilter( motif ) || !OnlyOptionalPatternsFilter( motif ) ) {
+		if( !DisjunctiveTriplesMotifFilter( motif ) ) { //|| !OnlyOptionalPatternsFilter( motif ) ) {
 			filtered += 1
 			if( filtered % 10000 == 0 ) println( "\n[info] filtered: "+filtered )
 			return

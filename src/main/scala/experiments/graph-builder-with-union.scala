@@ -7,6 +7,7 @@ import com.hp.hpl.jena.query._
 import com.hp.hpl.jena.sparql.algebra._
 import com.hp.hpl.jena.sparql.core.Var
 import org.jgrapht.graph._
+import org.jgrapht.alg.ConnectivityInspector
 
 import java.io._
 import java.util.Scanner
@@ -30,6 +31,10 @@ object RunBuilder {
 
 		for( e <- graph.edgeSet ) { println(e.p+" "+e.unionBranches+" "+e.isOptional) }
 
+		val inspector = new ConnectivityInspector[jena.graph.Node, EdgeNode]( graph )
+
+		println( "connected: "+inspector.isGraphConnected)
+
 		// val builder = new GraphBuilderWithUnion
 
 		// OpWalker.walk( op, builder )
@@ -51,7 +56,7 @@ object RunBuilder {
 class GraphBuilder( operator: Op ) {
 	val graph = newGraph
 	val termToBNode = new mutable.HashMap[jena.graph.Node, jena.graph.Node]
-	var predicateVars = Set[Var]()
+	var predicateVars = mutable.Set[Var]()
 	var patternsContainPredicateVar = false
 
 	var unionIdx = 0
@@ -71,10 +76,11 @@ class GraphBuilder( operator: Op ) {
 				walk( o.getLeft, branches + ((unionIdx, false)), optional )
 				walk( o.getRight, branches + ((unionIdx, true)), optional )
 			}
-			case o: op.OpLeftJoin => {
-				walk( o.getLeft, branches, optional )
-				walk( o.getRight, branches, true )
-			}
+			// not used - it makes sense to analyse motifs in optional patterns
+			// case o: op.OpLeftJoin => {
+			// 	walk( o.getLeft, branches, optional )
+			// 	walk( o.getRight, branches, true )
+			// }
 			case o: op.Op0 => {}
 			case o: op.Op1 => walk( o.getSubOp, branches, optional )
 			case o: op.Op2 => {
@@ -109,7 +115,7 @@ class GraphBuilder( operator: Op ) {
 			val predicate = pattern.getPredicate
 			if( predicate.isVariable ) {
 				patternsContainPredicateVar = true
-				predicateVars = predicateVars + Var.alloc( predicate )
+				predicateVars += Var.alloc( predicate )
 			}
 		})
 	}

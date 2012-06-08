@@ -61,6 +61,7 @@ class EdgeNode( var p: jena.graph.Node, var s: jena.graph.Node, var o: jena.grap
 			val e = o.asInstanceOf[EdgeNode]
 
 			// more edges can have same spo (when using unions), the union branch identifies the edge uniquely
+			// otherwise the right one doesn't necessarily make it into the motif
 			return( e.s == this.s && e.p == this.p && e.o == this.o && e.unionBranches == this.unionBranches )
 		}
 
