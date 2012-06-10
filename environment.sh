@@ -3,6 +3,7 @@
 export JAR_PATH=target/sparql-motifs-0.0.1.jar
 export MOTIF_CMD_CLASS=motifs.commandline.MotifExecutor
 export MERGE_CMD_CLASS=motifs.commandline.MergeExecutor
+export VIZ_CMD_CLASS=motifs.commandline.VizExecutor
 
 # JAVA_OPTS is pass by scala to java
 export JAVA_OPTS="-Xmx2048M -XX:+UseConcMarkSweepGC"

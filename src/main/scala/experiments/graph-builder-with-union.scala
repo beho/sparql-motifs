@@ -73,8 +73,10 @@ class GraphBuilder( operator: Op ) {
 			case o: op.OpBGP => addEdgesFrom( o.getPattern.getList, branches, optional )
 			case o: op.OpUnion => {
 				unionIdx += 1
-				walk( o.getLeft, branches + ((unionIdx, false)), optional )
-				walk( o.getRight, branches + ((unionIdx, true)), optional )
+				val idx = unionIdx // must hold unionIdx locally in order to not to be rewritten
+				println("starting "+unionIdx)
+				walk( o.getLeft, branches + ((idx, false)), optional )
+				walk( o.getRight, branches + ((idx, true)), optional )
 			}
 			// not used - it makes sense to analyse motifs in optional patterns
 			// case o: op.OpLeftJoin => {

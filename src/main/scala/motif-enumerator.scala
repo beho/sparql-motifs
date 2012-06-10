@@ -15,7 +15,7 @@ import scala.collection.JavaConversions.{asScalaSet, setAsJavaSet}
 
 
 class MotifEnumerator( val filename: String, val dataset: String, val substitutionsEndpointURL: String, val skipPredicateVarQueries: Boolean = false, val handler: MotifHandler[jena.graph.Node, EdgeNode] ) {
-	val reader = new QueryReader( filename, motifs.Prefixes.forDataset( dataset), skipPredicateVarQueries )
+	val reader = new QueryReader( filename, motifs.Prefixes.forDataset( dataset ), skipPredicateVarQueries )
 	val subgraphEnumerator = new ConnectedSubgraphEnumerator[jena.graph.Node, motifs.EdgeNode]()
 	val substitutor = new PredicateVarSubstitutor( substitutionsEndpointURL )
 
