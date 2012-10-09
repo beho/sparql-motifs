@@ -32,27 +32,16 @@ object MergeHelper {
 }
 
 class Merger( sourceDir: String, targetDir: String ) {
+	val motifURITemplate = "http://fit.vutbr.cz/query-analysis#motif-"
+	val countProperty = jena.graph.Node.createURI( "http://fit.vutbr.cz/query-analysis#timesEncountered" )
+	val containedInProperty = jena.graph.Node.createURI( "http://fit.vutbr.cz/query-analysis#containedIn" )
+	val motifVar = sparql.core.Var.alloc( "motif" )
+	val countVar = sparql.core.Var.alloc( "count" )
+	val queryVar = sparql.core.Var.alloc( "query" )
+	val motifCountVar = sparql.core.Var.alloc( "motifsCount" )
+	val motifsCountQuery = query.QueryFactory.create( "SELECT (COUNT(?motif) AS ?motifsCount) WHERE { GRAPH ?motif {} }" )
 
 	def run {
-		val motifURITemplate = "http://fit.vutbr.cz/query-analysis#motif-"
-
-		val countProperty = jena.graph.Node.createURI( "http://fit.vutbr.cz/query-analysis#timesEncountered" )
-		val containedInProperty = jena.graph.Node.createURI( "http://fit.vutbr.cz/query-analysis#containedIn" )
-		val motifVar = sparql.core.Var.alloc( "motif" )
-		val countVar = sparql.core.Var.alloc( "count" )
-		val queryVar = sparql.core.Var.alloc( "query" )
-		val motifCountVar = sparql.core.Var.alloc( "motifsCount" )
-
-		val motifsCountQuery = query.QueryFactory.create( "SELECT (COUNT(?motif) AS ?motifsCount) WHERE { GRAPH ?motif {} }" )
-
-		// if( args.size != 2 ) {
-		// 	println( "tdb-merge <source-tdb-dir> <target-tdb-dir>" )
-		// 	scala.sys.exit(1)
-		// }
-
-		// val sourceDir = args(0)
-		// val targetDir = args(1)
-
 		println( "source : "+sourceDir )
 		println( "target : "+targetDir )
 
@@ -65,8 +54,7 @@ class Merger( sourceDir: String, targetDir: String ) {
 
 		val targetDatasetGraph = TDBFactory.createDatasetGraph( targetDir )
 		val target = update.GraphStoreFactory.create( targetDatasetGraph )
-		
-		// val targetMotifsCountQuery = query.QueryFactory.create( "SELECT (COUNT(?motif) AS ?motifsCount) WHERE { GRAPH ?motif {} }" )
+
 		val targetMotifsCountIterator = query.QueryExecutionFactory.createPlan( motifsCountQuery, target ).iterator
 		var targetMotifsCount = targetMotifsCountIterator.next.get( motifCountVar ).getLiteral.getValue.asInstanceOf[Int]
 		println( "target motifs count : "+targetMotifsCount.toString )
@@ -75,10 +63,8 @@ class Merger( sourceDir: String, targetDir: String ) {
 		val motifs = query.QueryExecutionFactory.createPlan( motifsQuery, source ).iterator
 
 		var processed = 0
-
 		val start = System.currentTimeMillis
 
-		// motifs.foreach( g => {
 		while( motifs.hasNext ) {
 			TDB.sync( target )
 
@@ -88,20 +74,15 @@ class Merger( sourceDir: String, targetDir: String ) {
 
 			val sourceCountLiteral = binding.get( countVar )
 			val sourceCount = sourceCountLiteral.getLiteral.getValue.asInstanceOf[Int]
-			// println( "source count : "+sourceCount )
 
 			val motifTriplesQuery = query.QueryFactory.create( "SELECT ?s ?p ?o WHERE { GRAPH <"+sourceMotifURI.toString+"> { ?s ?p ?o } }" )
-
 			val triples = query.QueryExecutionFactory.createPlan( motifTriplesQuery, source ).iterator
 
 			val motifGraph = MergeHelper.buildDirectedGraph( triples )
-			
-			// val targetMotifQuery = QueryHelper.queryWithCountFor( motifGraph )
 			val targetMotifQuery = QueryHelper.queryFor( motifGraph )
-			// println( targetMotifQuery.toString )
 
 			val targetMotifIterator = query.QueryExecutionFactory.createPlan( targetMotifQuery, target ).iterator
-			
+
 			if( targetMotifIterator.hasNext ) {
 				// print( "found in target : " )
 
@@ -109,7 +90,6 @@ class Merger( sourceDir: String, targetDir: String ) {
 				val targetMotifURI = targetMotif.get( motifVar )
 
 				val targetCountLiteral = targetMotif.get( countVar )
-
 				val targetCount = targetCountLiteral.getLiteral.getValue.asInstanceOf[Int]
 
 				target.getDefaultGraph.delete( new jena.graph.Triple( targetMotifURI, countProperty, targetCountLiteral ) )
@@ -127,7 +107,7 @@ class Merger( sourceDir: String, targetDir: String ) {
 
 					target.getDefaultGraph.add( new jena.graph.Triple( targetMotifURI, containedInProperty, queryURI ) )
 				}
-			} 
+			}
 			else {
 				// println( "not found in target" )
 
@@ -165,7 +145,6 @@ class Merger( sourceDir: String, targetDir: String ) {
 		target.close
 
 		val end = System.currentTimeMillis
-
 		val diff = (end - start) / 1000.0
 
 		println( "\n"+diff.toString+"s ("+sourceMotifsCount/diff+" motif/s)" )

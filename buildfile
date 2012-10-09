@@ -1,10 +1,20 @@
 require 'buildr/scala'
 # require 'ruby_gntp'
 
-repositories.remote << 'http://repo1.maven.org/maven2' << 'http://conjars.org/repo' << 'http://repo.akka.io/releases/' << 'http://repo.typesafe.com/typesafe/releases/' << 'https://oss.sonatype.org/content/groups/public' << 'http://guiceyfruit.googlecode.com/svn/repo/releases' << 'http://oss.sonatype.org/content/repositories/releases'
+repositories.remote <<
+    'http://repo1.maven.org/maven2' <<
+    'http://conjars.org/repo' <<
+    'http://repo.akka.io/releases/' <<
+    'http://repo.typesafe.com/typesafe/releases/' <<
+    'https://oss.sonatype.org/content/groups/public' <<
+    'http://guiceyfruit.googlecode.com/svn/repo/releases' <<
+    'http://oss.sonatype.org/content/repositories/releases' <<
+    'https://repository.apache.org/content/repositories/releases'
 
 JENA_ARQ = transitive('com.hp.hpl.jena:arq:jar:2.8.8')
 JENA_TDB = transitive('com.hp.hpl.jena:tdb:jar:0.8.10')
+# JENA_ARQ = transitive('org.apache.jena:jena-arq:jar:2.9.3')
+# JENA_TDB = transitive('org.apache.jena:jena-tdb:jar:0.9.3')
 JGRAPHT = transitive('thirdparty:jgrapht-jdk1.6:jar:0.8.2')
 AKKA_ACTOR = transitive('com.typesafe.akka:akka-actor:jar:2.0.1')
 AKKA_REMOTE = transitive('com.typesafe.akka:akka-remote:jar:2.0.1')
@@ -17,7 +27,7 @@ def add_dependencies(pkg)
   dependencies = compile.dependencies.map { |d| "-c #{d}"}.join(" ")
   puts "Creating fat jar"
   sh "java -jar tools/autojar.jar -bae -o #{pkg} #{dependencies} #{tempfile}" # v param for details
-  # -m target/MANIFEST.MF 
+  # -m target/MANIFEST.MF
 end
 
 def create_classpath_script( dependencies, version )
@@ -37,7 +47,7 @@ define 'sparql-motifs' do
 
 	compile.with JENA_ARQ, JENA_TDB, JGRAPHT, AKKA_ACTOR, AKKA_REMOTE
 	# compile.using( {:optimise => true } )
-	compile.using( {:deprecation => true, :warnings => true, :other => "-unchecked" } )
+	compile.using( {:deprecation => true, :warnings => true, :other => "-unchecked", :optimise => true } )
 
 	create_classpath_script( compile.dependencies, project.version )
 
@@ -49,7 +59,7 @@ end
  # Buildr.application.on_completion do |title, message|
  #   GNTP.notify({
  #     :app_name => "buildr",
- #     :title    => title, 
+ #     :title    => title,
  #     :text     => message,
  #   })
  # end
@@ -57,7 +67,7 @@ end
  # Buildr.application.on_failure do |title, message|
  #   GNTP.notify({
  #     :app_name => "buildr",
- #     :title    => title, 
+ #     :title    => title,
  #     :text     => message,
  #   })
  # end

@@ -32,10 +32,6 @@ trait MotifCounter[N, E] extends MotifHandler[N, E] {
 }
 
 class TDBMotifCounter( filename: String ) extends MotifCounter[jena.graph.Node, EdgeNode] {
-	// type Subgraph = AbstractGraph[jena.graph.Node, EdgeNode]
-
-	// filename without (last) extension
-
 	val countProperty = Node.createURI( "http://fit.vutbr.cz/query-analysis#timesEncountered" )
 	val containedInProperty = Node.createURI( "http://fit.vutbr.cz/query-analysis#containedIn" )
 
@@ -55,7 +51,7 @@ class TDBMotifCounter( filename: String ) extends MotifCounter[jena.graph.Node, 
 	var graphStore = update.GraphStoreFactory.create( datasetGraph )
 
 	println( "optimizer strategy: "+datasetGraph.getTransform.toString )
-	
+
 
 	override def handle( subgraph: DirectedGraph[jena.graph.Node, EdgeNode], queryURI: String ) = {
 		// println( "s: "+subgraph.toString )
@@ -69,10 +65,10 @@ class TDBMotifCounter( filename: String ) extends MotifCounter[jena.graph.Node, 
 
 		val query = QueryHelper.queryFor( subgraph )
 		// println( query.toString )
-		
+
 		handled += 1
 		// println( "q: "+query.toString )
-		
+
 		val plan = QueryExecutionFactory.createPlan( query, graphStore )
 		val result = plan.iterator
 
@@ -88,7 +84,7 @@ class TDBMotifCounter( filename: String ) extends MotifCounter[jena.graph.Node, 
 
 			// val countLiteral = graphStore.getDefaultGraph.find( motif, countProperty, null ).next.getMatchObject
 			val countLiteral = binding.get( Var.alloc( countVarName ) )
-			
+
 			graphStore.getDefaultGraph.delete( new Triple( motifURI, countProperty, countLiteral ) )
 
 			val count = countLiteral.getLiteral.getValue.asInstanceOf[Int]
@@ -102,7 +98,7 @@ class TDBMotifCounter( filename: String ) extends MotifCounter[jena.graph.Node, 
 			result.close
 
 			unique += 1
-			
+
 			val graph = QueryHelper.subgraphToRDFGraph( subgraph )
 			val motifURI = Node.createURI( motifURITemplate + unique.toString )
 
@@ -111,11 +107,7 @@ class TDBMotifCounter( filename: String ) extends MotifCounter[jena.graph.Node, 
 
 			// insert motif as a named graph
 			graphStore.addGraph( motifURI, graph )
-
-			// (motif timesEncountered count) into default model
-			// val motif = 
 			graphStore.getDefaultGraph.add( new Triple( motifURI, countProperty, QueryHelper.createUnsignedIntLiteral( 1 ) ) )
-
 			graphStore.getDefaultGraph.add( new Triple( motifURI, containedInProperty,  Node.createURI( queryURI ) ) )
 		}
 
@@ -147,7 +139,7 @@ class TDBMotifCounter( filename: String ) extends MotifCounter[jena.graph.Node, 
 		// println( "syncing tdb & closing" )
 		TDB.sync( graphStore )
 		java.lang.Thread.sleep( 1000 )
-		graphStore.close 
+		graphStore.close
 	}
 }
 
@@ -181,10 +173,10 @@ object QueryHelper {
 
 		val topGroup = new jena.sparql.syntax.ElementGroup
 		val namedGraphGroup = new jena.sparql.syntax.ElementGroup
-		
+
 		val requiredBGP = new jena.sparql.syntax.ElementTriplesBlock
 		// val requiredBGP = new jena.sparql.syntax.ElementPathBlock
-		
+
 		val iffFilters = mutable.Set[jena.sparql.syntax.ElementFilter]()
 
 		val termToVar = new mutable.HashMap[jena.graph.Node, Var]
@@ -214,11 +206,11 @@ object QueryHelper {
 
 			requiredBGP.addTriple( new Triple( s, e.p, o ) )
 
-			val filter = new jena.sparql.syntax.ElementFilter( 
-				new E_LogicalOr( 
-					new E_NotEquals( new ExprVar( sVar ), new ExprVar( s ) ), 
-					new E_LogicalOr( 
-						new E_NotEquals( new ExprVar( pVar ), new nodevalue.NodeValueNode( e.p ) ), 
+			val filter = new jena.sparql.syntax.ElementFilter(
+				new E_LogicalOr(
+					new E_NotEquals( new ExprVar( sVar ), new ExprVar( s ) ),
+					new E_LogicalOr(
+						new E_NotEquals( new ExprVar( pVar ), new nodevalue.NodeValueNode( e.p ) ),
 						new E_NotEquals( new ExprVar( oVar ), new ExprVar( o ) ) ) ) )
 
 			iffFilters.add( filter )
@@ -246,13 +238,13 @@ object QueryHelper {
 
 		val notExistsBGP = new jena.sparql.syntax.ElementTriplesBlock
 		// val notExistsBGP = new jena.sparql.syntax.ElementPathBlock
-		
+
 		notExistsBGP.addTriple( new Triple( sVar, pVar, oVar ) )
 
 		notExistsGroup.addElement( notExistsBGP )
 
-		iffFilters.foreach( f => { 
-			notExistsGroup.addElementFilter( f ) 
+		iffFilters.foreach( f => {
+			notExistsGroup.addElementFilter( f )
 		})
 
 		val notExists = new jena.sparql.expr.E_NotExists( notExistsGroup )
@@ -261,8 +253,8 @@ object QueryHelper {
 		namedGraphGroup.addElementFilter( new jena.sparql.syntax.ElementFilter( notExists ) )
 
 		varPairsToCompare.foreach( p => {
-			namedGraphGroup.addElementFilter( new jena.sparql.syntax.ElementFilter( 
-							new E_NotEquals( 
+			namedGraphGroup.addElementFilter( new jena.sparql.syntax.ElementFilter(
+							new E_NotEquals(
 								new ExprVar( p._1 ),
 								new ExprVar( p._2 ) ) ) )
 		})
@@ -315,7 +307,7 @@ object QueryHelper {
 // 	// val connection = ConnectionConfiguration
 // 	// 		.to( filename )
 // 	// 		.credentials( "admin", "admin" )
-// 	// 		.connect	
+// 	// 		.connect
 
 // 	// val dir = "./tdb/"+filename.split('.').head
 
@@ -344,10 +336,10 @@ object QueryHelper {
 
 // 		val query = QueryHelper.queryFor( subgraph )
 // 		println( query.toString )
-		
+
 // 		totalMotifsCount += 1
 // 		// println( "q: "+query.toString )
-		
+
 // 		val plan = QueryExecutionFactory.createPlan( query, graphStore )
 // 		val result = plan.iterator
 
@@ -363,7 +355,7 @@ object QueryHelper {
 
 // 			// val countLiteral = graphStore.getDefaultGraph.find( motif, countProperty, null ).next.getMatchObject
 // 			val countLiteral = binding.get( Var.alloc( countVarName ) )
-			
+
 // 			graphStore.getDefaultGraph.delete( new Triple( motifURI, countProperty, countLiteral ) )
 
 // 			val count = countLiteral.getLiteral.getValue.asInstanceOf[Int]
@@ -377,7 +369,7 @@ object QueryHelper {
 // 			result.close
 
 // 			uniqueMotifsCount = uniqueMotifsCount + 1
-			
+
 // 			val graph = QueryHelper.subgraphToRDFGraph( subgraph )
 // 			val motifURI = Node.createURI( motifURITemplate + uniqueMotifsCount.toString )
 
@@ -388,7 +380,7 @@ object QueryHelper {
 // 			graphStore.addGraph( motifURI, graph )
 
 // 			// (motif timesEncountered count) into default model
-// 			// val motif = 
+// 			// val motif =
 // 			graphStore.getDefaultGraph.add( new Triple( motifURI, countProperty, QueryHelper.createUnsignedIntLiteral( 1 ) ) )
 
 // 			graphStore.getDefaultGraph.add( new Triple( motifURI, containedInProperty, queryURI ) )
@@ -398,6 +390,6 @@ object QueryHelper {
 // 	def close = {
 // 		// println( "syncing tdb & closing" )
 // 		// TDB.sync( graphStore )
-// 		graphStore.close 
+// 		graphStore.close
 // 	}
 // }

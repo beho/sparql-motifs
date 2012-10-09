@@ -61,8 +61,8 @@ object MotifExecutor {
 
 			case "-dataset" :: name :: tail => {
 				val url = name match {
-					// case "dbpedia" => "http://nlpmosaic.fit.vutbr.cz:8890/sparql"
-					case "dbpedia" => "http://dbpedia.org/sparql"
+					case "dbpedia" => "http://147.229.8.52:8890/sparql"
+					// case "dbpedia" => "http://dbpedia.org/sparql"
 					case "swdf" => "http://147.229.13.234:8890/sparql"
 					// case "swdf" => "http://data.semanticweb.org/sparql"
 					case _ => {

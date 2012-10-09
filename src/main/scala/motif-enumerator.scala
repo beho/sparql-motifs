@@ -161,6 +161,8 @@ class MotifEnumerator( val filename: String, val dataset: String, val substituti
 
 
 class PredicateVarSubstitutor( endpointURL: String ) {
+	val resultLimit = 1000
+
 	def substitutionsFor( query: Query, predicateVars: Set[Var] )
 			: List[sparql.engine.binding.Binding] = {
 		
@@ -169,8 +171,10 @@ class PredicateVarSubstitutor( endpointURL: String ) {
 		substitutionsQuery.setQuerySelectType
 		substitutionsQuery.setDistinct( true )
 		substitutionsQuery.addProjectVars( predicateVars )
+		substitutionsQuery.setLimit( resultLimit )
 
 		// println( substitutionsQuery.toString )
+		// println( endpointURL )
 
 		val qe = QueryExecutionFactory.sparqlService( endpointURL, substitutionsQuery )
 		val resultSet = qe.execSelect
@@ -240,7 +244,7 @@ object PredicateVarSubstitutor {
 
 		val uniqueSubs = uniqueSubstitutionsForGraph( graph, predicateVarsInGraph, substitutions )
 		// println( uniqueSubs.size )
-
+		// println( "[debug] uniqueSubs: "+uniqueSubs.toString )
 		uniqueSubs.foreach( s => {
 			val graphWithSubstitutions = createGraphWithSubstitutions( graph, s )
 			if( graphWithSubstitutions != null ) {

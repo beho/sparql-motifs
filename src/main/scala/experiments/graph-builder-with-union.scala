@@ -33,21 +33,7 @@ object RunBuilder {
 
 		val inspector = new ConnectivityInspector[jena.graph.Node, EdgeNode]( graph )
 
-		println( "connected: "+inspector.isGraphConnected)
-
-		// val builder = new GraphBuilderWithUnion
-
-		// OpWalker.walk( op, builder )
-
-		// println( "graph count: "+builder.graphs.length+"\n" )
-
-		// for( g <- builder.graphs ) {
-		// 	println( "graph edge count: "+g.edgeSet.size+"" )
-		// 	// println("\t"+g.toString)
-		// 	for( e <- g.edgeSet ) {
-		// 		println("\t"+e.toString+"\n")
-		// 	}
-		// }
+		println( "connected: "+inspector.isGraphConnected )
 
 		scanner.close
 	}
@@ -74,7 +60,7 @@ class GraphBuilder( operator: Op ) {
 			case o: op.OpUnion => {
 				unionIdx += 1
 				val idx = unionIdx // must hold unionIdx locally in order to not to be rewritten
-				println("starting "+unionIdx)
+				// println("starting "+unionIdx)
 				walk( o.getLeft, branches + ((idx, false)), optional )
 				walk( o.getRight, branches + ((idx, true)), optional )
 			}
@@ -102,7 +88,7 @@ class GraphBuilder( operator: Op ) {
 			if( !termToBNode.contains( s ) ) {
 				termToBNode.put( s, jena.graph.Node.createAnon )
 			}
-			
+
 			if( !termToBNode.contains( o ) ) {
 				termToBNode.put( o, jena.graph.Node.createAnon )
 			}
@@ -120,72 +106,5 @@ class GraphBuilder( operator: Op ) {
 				predicateVars += Var.alloc( predicate )
 			}
 		})
-	}
-}
-
-class GraphBuilderWithUnion extends OpVisitorBase {
-	// var patterns = immutable.Set[jena.graph.Triple]()
-	var patternsContainPredicateVar = false
-	var predicateVars = Set[Var]()
-
-	val termToBNode = new mutable.HashMap[jena.graph.Node, jena.graph.Node]
-
-	var currentGraph = newGraph
-	var graphs = ArrayBuffer[DirectedPseudograph[jena.graph.Node, motifs.EdgeNode]]( currentGraph )
-
-	private def newGraph = new DirectedPseudograph[jena.graph.Node, EdgeNode]( classOf[EdgeNode] )
-
-	override def visit( opBGP: op.OpBGP ) {
-		val newPatterns = scala.collection.JavaConversions.asScalaBuffer( opBGP.getPattern.getList )
-		// patterns = patterns ++ newPatterns
-
-		newPatterns.foreach( pattern => {
-			val s = pattern.getSubject
-			val p = pattern.getPredicate
-			val o = pattern.getObject
-
-			if( !termToBNode.contains( s ) ) {
-				termToBNode.put( s, jena.graph.Node.createAnon )
-			}
-			
-			if( !termToBNode.contains( o ) ){
-				termToBNode.put( o, jena.graph.Node.createAnon )
-			}
-
-			val source = termToBNode( s )
-			val target = termToBNode( o )
-
-			currentGraph.addVertex( source )
-			currentGraph.addVertex( target )
-			currentGraph.addEdge( source, target, new EdgeNode( p, source, target ) )
-
-			val predicate = pattern.getPredicate
-			if( predicate.isVariable ) {
-				patternsContainPredicateVar = true
-				predicateVars = predicateVars + Var.alloc( predicate )
-			}
-
-			// println( p.toString+"\n" )
-		})
-	}
-
-	override def visit( union: op.OpUnion ) {
-		// println( "forking" )
-
-		val lWalker = new GraphBuilderWithUnion
-		val rWalker = new GraphBuilderWithUnion
-
-		OpWalker.walk( union.getLeft, lWalker )
-		OpWalker.walk( union.getRight, rWalker )
-
-		val newGraphs = lWalker.graphs ++ rWalker.graphs
-		newGraphs.foreach{ g => {
-			for( v <- currentGraph.vertexSet ) g.addVertex( v )
-			for( e <- currentGraph.edgeSet ) g.addEdge( e.s, e.o, e )
-		}}
-		graphs -= currentGraph
-		graphs ++= newGraphs
-
-		// graphs = graphs ++ lWalker.graphs ++ rWalker.graphs
 	}
 }

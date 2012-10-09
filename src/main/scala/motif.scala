@@ -39,7 +39,7 @@ class Motif extends DirectedPseudograph[jena.graph.Node, EdgeNode]( classOf[Edge
 	}
 
 	// override def hashCode: Int {
-		
+
 	// }
 }
 
@@ -94,11 +94,6 @@ class EdgeNode( var p: jena.graph.Node, var s: jena.graph.Node, var o: jena.grap
 		out.writeObject( sBuffer.array )
 		out.writeObject( pBuffer.array )
 		out.writeObject( oBuffer.array )
-
-		// out.writeInt( unionPath.length )
-		// out.writeChars( unionPath )
-
-		// println( "writing: "+s.toString+" "+p.toString+" "+o.toString )
 	}
 
 	private def readObject( in: ObjectInputStream ) = {
@@ -107,14 +102,6 @@ class EdgeNode( var p: jena.graph.Node, var s: jena.graph.Node, var o: jena.grap
 		s = nodecSSE.decode( ByteBuffer.wrap( in.readObject.asInstanceOf[Array[Byte]] ), null )
 		p = nodecSSE.decode( ByteBuffer.wrap( in.readObject.asInstanceOf[Array[Byte]] ), null )
 		o = nodecSSE.decode( ByteBuffer.wrap( in.readObject.asInstanceOf[Array[Byte]] ), null )
-
-		// val pathLength = in.readInt
-		// val buffer = Array[Char]()
-
-		// 0.to( pathLength - 1 ).foreach( i => { buffer(i) = in.readChar })
-		// unionPath = new String( buffer )
-
-		// println( "reading: "+s.toString+" "+p.toString+" "+o.toString)
 	}
 }
 
@@ -125,62 +112,18 @@ class EdgeNode( var p: jena.graph.Node, var s: jena.graph.Node, var o: jena.grap
 
 // 		val layout = new ISOMLayout[V, E]( graph )
 // 		layout.setSize( new Dimension( width, height ) )
- 
+
 // 		val vv = new BasicVisualizationServer[V, E]( layout )
 // 		vv.getRenderContext().setVertexLabelTransformer( new ToStringLabeller() )
 // 		vv.getRenderContext().setEdgeLabelTransformer( new ToStringLabeller() )
 // 		vv.setSize( width, height )
- 
+
 // 		val dumper = new PNGDump()
 // 		try {
 // 			dumper.dumpComponent( new File( filename ), vv )
-// 		} 
+// 		}
 // 		catch {
 // 			case e => { e.printStackTrace() }
 // 		}
 // 	}
 // }
-
-
-// class GraphBuilder extends OpVisitorBase {
-// 	// var patterns = immutable.Set[jena.graph.Triple]()
-// 	var patternsContainPredicateVar = false
-// 	var predicateVars = Set[Var]()
-
-// 	val termToBNode = new mutable.HashMap[jena.graph.Node, jena.graph.Node]
-
-// 	var graph = new DirectedPseudograph[jena.graph.Node, EdgeNode]( classOf[EdgeNode] )
-
-// 	override def visit( opBGP: OpBGP ) {
-// 		val newPatterns = scala.collection.JavaConversions.asScalaBuffer( opBGP.getPattern.getList )
-// 		// patterns = patterns ++ newPatterns
-
-// 		newPatterns.foreach( pattern => {
-// 			val s = pattern.getSubject
-// 			val p = pattern.getPredicate
-// 			val o = pattern.getObject
-
-// 			if( !termToBNode.contains( s ) ) {
-// 				termToBNode.put( s, jena.graph.Node.createAnon )
-// 			}
-			
-// 			if( !termToBNode.contains( o ) ){
-// 				termToBNode.put( o, jena.graph.Node.createAnon )
-// 			}
-
-// 			val source = termToBNode( s )
-// 			val target = termToBNode( o )
-
-// 			graph.addVertex( source )
-// 			graph.addVertex( target )
-// 			graph.addEdge( source, target, new EdgeNode( p, source, target ) )
-
-// 			val predicate = pattern.getPredicate
-// 			if( predicate.isVariable ) {
-// 				patternsContainPredicateVar = true
-// 				predicateVars = predicateVars + Var.alloc( predicate )
-// 			}
-// 		})
-// 	}
-// }
-
