@@ -1,1 +1,0 @@
-BASE <http://192.168.27.144/eswc_planner/run/index.php> PREFIX http: <http://www.w3.org/2006/http#> SELECT ?label WHERE { <http://data.semanticweb.org/organization/birkbeck-university-of-london> ?label_prop ?label . FILTER(REGEX(str(?label_prop), "(label|summary|name)$", "i")) } LIMIT 1
