@@ -3,6 +3,7 @@
 export JAR_PATH=target/sparql-motifs-0.0.1.jar
 export MOTIF_CMD_CLASS=motifs.commandline.MotifExecutor
 export MERGE_CMD_CLASS=motifs.commandline.MergeExecutor
+export SIFT_CMD_CLASS=motifs.commandline.SiftExecutor
 export VIZ_CMD_CLASS=motifs.commandline.VizExecutor
 
 # JAVA_OPTS is pass by scala to java
@@ -14,7 +15,7 @@ export JAVA_OPTS="-Xmx2048M -XX:+UseConcMarkSweepGC"
 # export CLASSPATH=target/sparql-motifs-0.0.1.jar:$CLASSPATH
 
 export SCALA_HOME=/opt/local/share/scala-2.9
-export TDBROOT=/Users/beho/Projects/Query/lib/TDB-0.8.10
+export TDBROOT=//Volumes/Storage/Projects/motifs/TDB-0.8.10
 
 export PATH=$PATH:$SCALA_HOME/bin:$TDBROOT/bin
 

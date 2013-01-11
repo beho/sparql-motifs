@@ -1,6 +1,7 @@
 package motifs.commandline
 
 // import motifs.MotifEnumerator
+import motifs.Prefixes
 import motifs.actors._
 
 import akka.actor._
@@ -41,9 +42,9 @@ object MotifExecutor {
 			case "-role" :: "enumerator" :: tail => {
 				if( o.contains( 'role ) ) {
 					println( "[error] cannot set both counter and enumerator role." )
-					scala.sys.exit(1)				
+					scala.sys.exit(1)
 				}
-					
+
 				nextOption( o ++ Map( 'role -> 'enumerator ), tail )
 			}
 
@@ -65,17 +66,19 @@ object MotifExecutor {
 					// case "dbpedia" => "http://dbpedia.org/sparql"
 					case "swdf" => "http://147.229.13.234:8890/sparql"
 					// case "swdf" => "http://data.semanticweb.org/sparql"
-					case _ => {
-						println( "[error] unknown dataset "+name )
-						scala.sys.exit(1)
-					}
+					case _ => ""
 				}
-				nextOption( o ++ Map( 'endpoint -> url, 'dataset -> name ), tail )
+
+				val maybePrefixes = Prefixes.forDataset( name )
+        maybePrefixes match {
+          case Some( prefixes ) => nextOption( o ++ Map( 'endpoint -> url, 'prefixes -> prefixes ), tail )
+          case None => o
+        }
 			}
 
-			case "-skip-pvq" :: tail => {
-				nextOption( o ++ Map( 'skip -> true ), tail )
-			}
+			// case "-skip-pvq" :: tail => {
+			// 	nextOption( o ++ Map( 'skip -> true ), tail )
+			// }
 
 			case file :: Nil => {
 				// val files = o( 'files ).asInstanceOf[Set[String]] + file
@@ -135,14 +138,14 @@ object MotifExecutor {
 		return true
 	}
 
-	
+
 	def main( args: Array[String] ): Unit = {
 		val options = getOptions( args )
 
 		if( !optionsOk( options ) ) {
 			println( "-role counter <port>" )
-			println( "-role enumerator -dataset <dbpedia | swdf> [-skip-pvq] (-counter <host:port>)+ filename" )
-			println( "-role both -dataset <dbpedia | swdf> [-skip-pvq] filename+" )
+			println( "-role enumerator -dataset <dbpedia | swdf> (-counter <host:port>)+ filename" )
+			println( "-role both -dataset <dbpedia | swdf> filename+" )
 			sys.exit(1)
 		}
 
@@ -182,7 +185,7 @@ object MotifExecutor {
 				println( "[info] starting on port "+port )
 
 				val counters = options( 'counters ).asInstanceOf[Set[(String, Int)]].toArray
-				
+
 				val configPrefix = "enumerator.akka.remote.netty"
 				val enumeratorConfig = ConfigFactory.parseMap( Map( configPrefix+".hostname" -> ip.toString, configPrefix+".port" -> port.toString ) )
 				// val master = actorOf( new NodeMaster( filenames, endpointURL, counterAddress ) )
@@ -191,20 +194,19 @@ object MotifExecutor {
 				// println( completeConfig.toString )
 
 				val system = ActorSystem( "enumerator", completeConfig )
-				val enumerator = system.actorOf( Props( new MotifEnumerator( filename, dataset, endpointURL, skipPredicateVars, counters ) ), name = "motif-enumerator" ) 
+				val enumerator = system.actorOf( Props( new MotifEnumerator( filename, dataset, endpointURL, counters ) ), name = "motif-enumerator" )
 			}
 
 			case 'both => {
 				val dataset = options( 'dataset ).asInstanceOf[String]
 				val endpointURL = options( 'endpoint ).asInstanceOf[String]
 				val filename = options( 'files ).asInstanceOf[String]
-				val skipPredicateVars = options.contains( 'skip )
 
 				// filenames.foreach( f => {
 					println( "running "+filename )
 
 					val counter = new motifs.TDBMotifCounter( filename)
-					val enumerator = new motifs.MotifEnumerator( filename, dataset, endpointURL, skipPredicateVars, counter )
+					val enumerator = new motifs.MotifEnumerator( filename, dataset, endpointURL, counter )
 					enumerator.run
 				// })
 			}

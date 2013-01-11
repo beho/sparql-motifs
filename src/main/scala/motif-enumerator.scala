@@ -14,8 +14,8 @@ import scala.collection._
 import scala.collection.JavaConversions.{asScalaSet, setAsJavaSet}
 
 
-class MotifEnumerator( val filename: String, val dataset: String, val substitutionsEndpointURL: String, val skipPredicateVarQueries: Boolean = false, val handler: MotifHandler[jena.graph.Node, EdgeNode] ) {
-	val reader = new QueryReader( filename, motifs.Prefixes.forDataset( dataset ), skipPredicateVarQueries )
+class MotifEnumerator( val filename: String, val prefixes: String, val substitutionsEndpointURL: String, val handler: MotifHandler[jena.graph.Node, EdgeNode] ) {
+	val reader = new QueryReader( filename, prefixes )
 	val subgraphEnumerator = new ConnectedSubgraphEnumerator[jena.graph.Node, motifs.EdgeNode]()
 	val substitutor = new PredicateVarSubstitutor( substitutionsEndpointURL )
 
@@ -48,7 +48,7 @@ class MotifEnumerator( val filename: String, val dataset: String, val substituti
 				// println( "\n\nDONE: "+reader.queryCount+" queries. "+counter.totalMotifsCount+" motifs" )
 
 				// println( line )
-				
+
 				reader.close
 				handler.close
 				failedSubstitutions.close
@@ -69,43 +69,39 @@ class MotifEnumerator( val filename: String, val dataset: String, val substituti
 				if( !connected ) {
 					disconnectedQueries.println( line )
 				}
-				else	
+				else
 				{
-					if( skipPredicateVarQueries ) {
-						print( "s" )
-						predicateVarQueries.println( line )
+					if( System.currentTimeMillis - lastSubstitutionsTime < waitMs ) {
+						Thread.sleep( waitMs )
 					}
-					else{ 				
-						if( System.currentTimeMillis - lastSubstitutionsTime < waitMs ) {
-							Thread.sleep( waitMs )
-						}
-		
-						try {
-							val substitutions = substitutor.substitutionsFor( query, predicateVars )
-							// println(substitutions.toString)
-							
-							findMotifsWithSubstitutions( subgraphEnumerator.streamFor( graph ), uri, substitutions )
-						}
-						catch {
-							case e: Exception => {
-								println( "\nFAILED TO OBTAIN SUBSTITUTITIONS" )
-								
-								println( e.getMessage+"\n" )
-								println( query.toString )
-		
-								// failedSubstitutions.println( e.getMessage+"\n" )
-								failedSubstitutions.println( line )
-								
-								// scala.sys.exit(1)
-							}
+
+					try {
+						val substitutions = substitutor.substitutionsFor( query, predicateVars )
+						// println(substitutions.toString)
+
+						findMotifsWithSubstitutions( subgraphEnumerator.streamFor( graph ), uri, substitutions )
+					}
+					catch {
+						case e: Exception => {
+							println( "\nFAILED TO OBTAIN SUBSTITUTITIONS" )
+
+							println( e.getMessage+"\n" )
+							println( query.toString )
+
+							// failedSubstitutions.println( e.getMessage+"\n" )
+							failedSubstitutions.println( line )
+
+							// scala.sys.exit(1)
 						}
 					}
 				}
 
 				run
 			}
+
+			case Some( InvalidGraph( _, _ ) ) => run
 		}
-		
+
 	}
 
 	@tailrec private def findMotifs( stream: Stream[DirectedGraph[jena.graph.Node, EdgeNode]], queryURI: String ): Unit = {
@@ -165,7 +161,7 @@ class PredicateVarSubstitutor( endpointURL: String ) {
 
 	def substitutionsFor( query: Query, predicateVars: Set[Var] )
 			: List[sparql.engine.binding.Binding] = {
-		
+
 		val substitutionsQuery = QueryFactory.create
 		substitutionsQuery.setQueryPattern( query.getQueryPattern )
 		substitutionsQuery.setQuerySelectType
@@ -184,7 +180,7 @@ class PredicateVarSubstitutor( endpointURL: String ) {
 		while( resultSet.hasNext ) {
 			bindings = resultSet.nextBinding :: bindings
 		}
-		
+
 		println( "\n[debug] substitutions count: "+bindings.size )
 		return bindings
 	}
@@ -205,13 +201,13 @@ object PredicateVarSubstitutor {
 				} else {
 					newGraph.addVertex( e.s )
 					newGraph.addVertex( e.o )
-					newGraph.addEdge( e.s, e.o, new EdgeNode( property, e.s, e.o ) )					
+					newGraph.addEdge( e.s, e.o, new EdgeNode( property, e.s, e.o ) )
 				}
 			}
 			else {
 				newGraph.addVertex( e.s )
 				newGraph.addVertex( e.o )
-				newGraph.addEdge( e.s, e.o, e )					
+				newGraph.addEdge( e.s, e.o, e )
 			}
 		})
 
@@ -235,11 +231,11 @@ object PredicateVarSubstitutor {
 
 		return set
 	}
-	
-	// TODO rewrite using Stream ?	
-	def substitute( graph: DirectedGraph[jena.graph.Node, EdgeNode], predicateVarsInGraph: Set[Var], substitutions: List[sparql.engine.binding.Binding] ): 
+
+	// TODO rewrite using Stream ?
+	def substitute( graph: DirectedGraph[jena.graph.Node, EdgeNode], predicateVarsInGraph: Set[Var], substitutions: List[sparql.engine.binding.Binding] ):
 			Set[Motif] = {
-		
+
 		var graphs = Set[Motif]()
 
 		val uniqueSubs = uniqueSubstitutionsForGraph( graph, predicateVarsInGraph, substitutions )

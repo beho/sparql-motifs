@@ -9,16 +9,16 @@ import scala.collection.JavaConversions.asScalaSet
 object VizExecutor {
 	val graphvizConfig = """
 	margin=0.05
-	
+
 	charset="utf-8"
 	fontname="Calibri"
 	fontsize=11
-	
+
 	splines=true
 	labelfloat=true
-	
+
 	overlap=false
-	
+
 	node[fontname="Calibri Bold", fontsize=11, color=cyan4, fillcolor=white, style=filled]
 	edge[fontname="Calibri", fontsize=11, len=2]""".stripMargin
 
@@ -28,7 +28,7 @@ object VizExecutor {
 
 		println( "[info] visualizing queries in "+filename )
 
-		val prefixes = motifs.Prefixes.forDataset( dataset )
+		val prefixes = motifs.Prefixes.forDataset( dataset ).get
 		val reader = new QueryReader( filename, prefixes )
 
 		val iterator = Iterator.continually( reader.nextQueryGraph ).takeWhile( _ != None ).withFilter( !_.get.isInstanceOf[InvalidGraph] )

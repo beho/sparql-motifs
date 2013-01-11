@@ -18,12 +18,12 @@ import scala.collection._
 abstract class QueryGraph
 case class CompleteGraph( graph: DirectedPseudograph[jena.graph.Node, EdgeNode], uri: String, line:String, connected: Boolean ) extends QueryGraph
 case class SubstitutionsNeedingGraph( graph: DirectedPseudograph[jena.graph.Node, EdgeNode], uri: String, query: Query, line: String, predicateVars: Set[Var], connected: Boolean ) extends QueryGraph
-case class InvalidGraph() extends QueryGraph
+case class InvalidGraph( line : String, error : String ) extends QueryGraph
 
 
-class QueryReader( filename: String, predefinedPrefixes: String = "", skipPredicateVarQueries: Boolean = false ) {
+class QueryReader( filename: String, predefinedPrefixes: String = "" ) { //, skipPredicateVarQueries: Boolean = false
 	val scanner = new Scanner( new FileInputStream( filename ), "UTF-8" )
-	val errors = new PrintWriter( filename+".errors" )
+	// val errors = new PrintWriter( filename+".errors" )
 
 	val queryURITemplate = "http://fit.vutbr.cz/query-analysis/query"
 
@@ -32,16 +32,16 @@ class QueryReader( filename: String, predefinedPrefixes: String = "", skipPredic
 	// var totalSubGraphCount = 0
 	// var theoreticTotalSubGraphCount = 0
 
-	@tailrec final def nextQueryGraph: Option[QueryGraph] = {
-		val queryGraph = readAndBuildQueryGraph
+	def nextQueryGraph: Option[QueryGraph] = {
+		return readAndBuildQueryGraph
 
-		queryGraph match {
-			case Some( InvalidGraph() ) => return nextQueryGraph
-			case None => return None
-			case graph => {
-				return graph
-			}
-		}
+		// queryGraph match {
+		// 	case Some( InvalidGraph( _ ) ) => retur
+		// 	case None => return None
+		// 	case graph => {
+		// 		return graph
+		// 	}
+		// }
 	}
 
 	def readAndBuildQueryGraph: Option[QueryGraph] = {
@@ -50,7 +50,7 @@ class QueryReader( filename: String, predefinedPrefixes: String = "", skipPredic
 		if( scanner.hasNext ) {
 			val line = scanner.nextLine
 
-			try {	
+			try {
 				return Some( buildQueryGraph( line ) )
 			}
 			catch {
@@ -65,21 +65,21 @@ class QueryReader( filename: String, predefinedPrefixes: String = "", skipPredic
 							catch {
 								case e1 => {
 									val error = "\n"+e1.toString.split('\n')(0)+"\n"+line+"\n"
-									errors.println( error )
-									println( error )
-									return Some( InvalidGraph() )
+									// errors.println( error )
+									// println( error )
+									return Some( InvalidGraph( line, error ) )
 								}
 							}
 						}
 
 						case _ => {
 							val error = "\n"+msg+"\n"+line+"\n"
-							errors.println( error )
-							println( error )
-							return Some( InvalidGraph() )
+							// errors.println( error )
+							// println( error )
+							return Some( InvalidGraph( line, error ) )
 						}
 					}
-				} 
+				}
 			}
 		}
 		else {
@@ -89,7 +89,7 @@ class QueryReader( filename: String, predefinedPrefixes: String = "", skipPredic
 
 	private def buildQueryGraph( line: String, prefixes: String = "" ): QueryGraph = {
 		// val builder = new GraphBuilder
-				
+
 		val query = QueryFactory.create( prefixes + line )
 		val op = Algebra.compile( query )
 
@@ -118,6 +118,6 @@ class QueryReader( filename: String, predefinedPrefixes: String = "", skipPredic
 
 	def close = {
 		scanner.close
-		errors.close
+		// errors.close
 	}
 }

@@ -112,8 +112,8 @@ object OnlyOptionalPatternsFilter {
 	}
 }
 
-class MotifEnumerator( val filename: String, val dataset: String, val substitutionsEndpointURL: String, val skipPredicateQueries: Boolean, counterAddrs: Array[(String, Int)] ) extends Actor with motifs.MotifCounter[jena.graph.Node, motifs.EdgeNode] {
-	val enumerator = new motifs.MotifEnumerator( filename, dataset, substitutionsEndpointURL, skipPredicateQueries, this )
+class MotifEnumerator( val filename: String, val dataset: String, val substitutionsEndpointURL: String, counterAddrs: Array[(String, Int)] ) extends Actor with motifs.MotifCounter[jena.graph.Node, motifs.EdgeNode] {
+	val enumerator = new motifs.MotifEnumerator( filename, dataset, substitutionsEndpointURL, this )
 	val dateFormat = new SimpleDateFormat( "HH:mm:ss.S" )
 
 	var counters: Array[ActorRef] = _
